@@ -10,6 +10,13 @@ export function MainNav() {
 
   const routes = [
     {
+      href: "/",
+      label: "NUS High",
+      icon: null,
+      active: pathname === "/",
+      className: "mr-6 font-bold text-lg hidden lg:flex items-center"
+    },
+    {
       href: "/dashboard",
       label: "Dashboard",
       icon: Home,
@@ -42,23 +49,35 @@ export function MainNav() {
   ]
 
   return (
-    <nav className="hidden md:flex items-center space-x-4 lg:space-x-6">
-      <Link href="/" className="mr-6 flex items-center space-x-2">
-        <span className="font-bold text-xl">NUS High</span>
-      </Link>
-      {routes.map((route) => (
-        <Link
-          key={route.href}
-          href={route.href}
-          className={cn(
-            "flex items-center text-sm font-medium transition-colors hover:text-primary",
-            route.active ? "text-primary" : "text-muted-foreground"
-          )}
-        >
-          <route.icon className="mr-2 h-4 w-4" />
-          {route.label}
-        </Link>
-      ))}
-    </nav>
+      <nav className="flex items-center space-x-4 lg:space-x-6">
+        {routes.map((route) => {
+          if (!route.icon) {
+            return (
+                <Link
+                    key={route.href}
+                    href={route.href}
+                    className={route.className}
+                >
+                  {route.label}
+                </Link>
+            )
+          }
+
+          return (
+              <Link
+                  key={route.href}
+                  href={route.href}
+                  className={cn(
+                      "flex items-center text-sm font-medium transition-colors hover:text-primary",
+                      route.active ? "text-primary" : "text-muted-foreground",
+                      "whitespace-nowrap"
+                  )}
+              >
+                {route.icon && <route.icon className="mr-2 h-4 w-4" />}
+                {route.label}
+              </Link>
+          )
+        })}
+      </nav>
   )
 }

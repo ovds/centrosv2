@@ -1,7 +1,6 @@
-// app/dashboard/layout.tsx
 import AuthenticatedLayout from "@/components/authenticated-layout"
 
-export default function DashboardLayout({
+export default function ProtectedLayout({
                                             children,
                                         }: {
     children: React.ReactNode

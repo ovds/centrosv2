@@ -9,32 +9,23 @@ import Image from "next/image"
 export default function CounsellorsPage() {
   const counsellors = [
     {
-      name: "Dr. Sarah Chen",
+      name: "Mr Allan",
       role: "Senior Academic Counsellor",
       specialization: "University Admissions, Career Planning",
       availability: "Mon-Fri, 9 AM - 5 PM",
-      email: "sarah.chen@nushigh.edu.sg",
+      email: "allan@nushigh.edu.sg",
       phone: "+65 6123 4567",
-      image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&h=200&auto=format&fit=crop"
+      image: "h"
     },
     {
-      name: "Mr. David Tan",
+      name: "Mr. West",
       role: "Career Guidance Counsellor",
       specialization: "Industry Insights, Interview Preparation",
       availability: "Tue-Thu, 10 AM - 6 PM",
-      email: "david.tan@nushigh.edu.sg",
+      email: "west@nushigh.edu.sg",
       phone: "+65 6123 4568",
-      image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=200&h=200&auto=format&fit=crop"
+      image: "h"
     },
-    {
-      name: "Ms. Rachel Wong",
-      role: "Student Development Counsellor",
-      specialization: "Personal Growth, Mental Wellness",
-      availability: "Mon-Fri, 8:30 AM - 4:30 PM",
-      email: "rachel.wong@nushigh.edu.sg",
-      phone: "+65 6123 4569",
-      image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=200&h=200&auto=format&fit=crop"
-    }
   ]
 
   return (

@@ -63,3 +63,13 @@
     rgba(147, 51, 234, 0.1) 100%
   );
 }
+
+@layer utilities {
+  .scrollbar-hidden {
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+}

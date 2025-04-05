@@ -21,7 +21,7 @@ interface TimeSlot {
     minute: number;
 }
 
-interface Appointment {
+export interface Appointment {
     id: number;
     title: string;
     day: Date;
@@ -46,69 +46,6 @@ interface NewAppointmentData {
     type: string;
     notes: string;
 }
-
-// Sample appointments data
-const initialAppointments: Appointment[] = [
-    {
-        id: 1,
-        title: 'Student Counseling',
-        day: new Date(2025, 2, 4), // March 4, 2025
-        startHour: 9,
-        startMinute: 0,
-        endHour: 10,
-        endMinute: 0,
-        counselorId: '1',
-        counselorName: 'Dr. Sarah Chen',
-        type: 'Academic Counselling',
-        notes: 'Discuss university application strategy'
-    },
-    {
-        id: 2,
-        title: 'Career Planning',
-        day: new Date(2025, 2, 4),
-        startHour: 11,
-        startMinute: 30,
-        endHour: 12,
-        endMinute: 30,
-        counselorId: '2',
-        counselorName: 'Mr. David Tan',
-        type: 'Career Guidance',
-        notes: 'Resume review and interview preparation'
-    },
-    {
-        id: 3,
-        title: 'Personal Development',
-        day: new Date(),
-        startHour: 11,
-        startMinute: 0,
-        endHour: 13,
-        endMinute: 0,
-        counselorId: '3',
-        counselorName: 'Ms. Rachel Wong',
-        type: 'Personal Development',
-        notes: 'Long session spanning multiple time slots'
-    },
-    {
-        id: 4,
-        title: 'Academic Planning',
-        day: new Date(),
-        startHour: 9,
-        startMinute: 0,
-        endHour: 11,
-        endMinute: 0,
-        counselorId: '1',
-        counselorName: 'Dr. Sarah Chen',
-        type: 'Academic Counselling',
-        notes: 'Another multi-slot event'
-    }
-];
-
-// Counselors data
-const counselors = [
-    { id: '1', name: 'Dr. Sarah Chen' },
-    { id: '2', name: 'Mr. David Tan' },
-    { id: '3', name: 'Ms. Rachel Wong' }
-];
 
 // Session types
 const sessionTypes = [
@@ -144,7 +81,22 @@ const formatTimeRange = (startHour: number, startMinute: number, endHour: number
     return `${formatTime(startHour, startMinute)} - ${formatTime(endHour, endMinute)}`;
 };
 
-const WeeklyCalendar: React.FC = () => {
+// Props interface for WeeklyCalendar
+interface WeeklyCalendarProps {
+    selectedCounselorId: string | null;
+    appointments: Appointment[];
+    counselors: { id: string; name: string }[];
+    onSaveAppointment: (appointment: Appointment) => void;
+    onDeleteAppointment: (id: number) => void;
+}
+
+const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
+    selectedCounselorId,
+    appointments,
+    counselors,
+    onSaveAppointment,
+    onDeleteAppointment
+}) => {
     // Media query hooks
     const isMobile = useMediaQuery('(max-width: 640px)');
     const isTablet = useMediaQuery('(max-width: 1024px)');
@@ -153,7 +105,6 @@ const WeeklyCalendar: React.FC = () => {
     const [currentDate, setCurrentDate] = useState<Date>(new Date());
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [calendarOpen, setCalendarOpen] = useState<boolean>(false);
-    const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
     const [visibleDays, setVisibleDays] = useState<number>(7);
 
     // Appointment creation state
@@ -224,6 +175,9 @@ const WeeklyCalendar: React.FC = () => {
 
     // Drag operation handlers
     const handleMouseDown = (day: Date, hour: number, minute: number, e: React.MouseEvent) => {
+        // Don't trigger if no counselor is selected
+        if (!selectedCounselorId) return;
+        
         // Don't trigger for existing appointments
         const slotAppointments = getAppointmentsForTimeSlot(day, hour, minute);
         if (slotAppointments.length > 0) return;
@@ -290,7 +244,7 @@ const WeeklyCalendar: React.FC = () => {
             endMinute = 0;
         }
 
-        // Create new appointment
+        // Create new appointment with the selected counselor ID
         setNewAppointment({
             day: new Date(dragStart.day),
             startHour,
@@ -298,7 +252,7 @@ const WeeklyCalendar: React.FC = () => {
             endHour,
             endMinute,
             title: '',
-            counselorId: '',
+            counselorId: selectedCounselorId!, // Use the selected counselor
             type: '',
             notes: ''
         });
@@ -361,20 +315,17 @@ const WeeklyCalendar: React.FC = () => {
 
     // Handle saving new appointment
     const handleSaveAppointment = () => {
-        if (!newAppointment) return;
+        if (!newAppointment || !selectedCounselorId) return;
 
         // Find the counselor name based on the selected ID
-        const selectedCounselor = counselors.find(c => c.id === newAppointment.counselorId);
+        const selectedCounselor = counselors.find(c => c.id === selectedCounselorId);
 
-        // Add a new appointment
-        setAppointments([
-            ...appointments,
-            {
-                ...newAppointment,
-                id: Math.max(0, ...appointments.map(a => a.id)) + 1,
-                counselorName: selectedCounselor?.name || 'Unknown'
-            }
-        ]);
+        // Create the appointment with the parent's handler
+        onSaveAppointment({
+            ...newAppointment,
+            id: Math.max(0, ...appointments.map(a => a.id)) + 1,
+            counselorName: selectedCounselor?.name || 'Unknown'
+        });
 
         // Reset state
         setNewAppointment(null);
@@ -383,7 +334,7 @@ const WeeklyCalendar: React.FC = () => {
 
     // Handle deleting an appointment
     const handleDeleteAppointment = (id: number) => {
-        setAppointments(appointments.filter(appt => appt.id !== id));
+        onDeleteAppointment(id);
         setSelectedAppointment(null);
     };
 
@@ -727,25 +678,6 @@ const WeeklyCalendar: React.FC = () => {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="counselor">Counselor</Label>
-                            <Select
-                                value={newAppointment?.counselorId || ''}
-                                onValueChange={(value) => setNewAppointment(prev => prev ? {...prev, counselorId: value} : null)}
-                            >
-                                <SelectTrigger id="counselor">
-                                    <SelectValue placeholder="Select counselor" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {counselors.map(counselor => (
-                                        <SelectItem key={counselor.id} value={counselor.id}>
-                                            {counselor.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="grid gap-2">
                             <Label htmlFor="type">Session Type</Label>
                             <Select
                                 value={newAppointment?.type || ''}
@@ -785,7 +717,7 @@ const WeeklyCalendar: React.FC = () => {
                         </Button>
                         <Button
                             onClick={handleSaveAppointment}
-                            disabled={!newAppointment?.title || !newAppointment?.counselorId || !newAppointment?.type}
+                            disabled={!newAppointment?.title || !newAppointment?.type}
                             className="w-full sm:w-auto"
                         >
                             Create Appointment

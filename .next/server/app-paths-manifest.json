@@ -1,0 +1,7 @@
+{
+  "/resources/page": "app/resources/page.js",
+  "/forum/page": "app/forum/page.js",
+  "/auth/login/page": "app/auth/login/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/forum/[slug]/page": "app/forum/[slug]/page.js"
+}

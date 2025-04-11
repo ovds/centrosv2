@@ -1,4 +1,4 @@
-// File: C:\Users\krish\cursor-projects\centrosv2\app\dashboard\page.tsx
+// File: C:\Users\krish\cursor\centrosv2\app\dashboard\page.tsx
 import * as entry from '../../../../app/dashboard/page.js'
 import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

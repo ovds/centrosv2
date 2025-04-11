@@ -1,7 +1,7 @@
 {
-  "/resources/page": "app/resources/page.js",
-  "/forum/page": "app/forum/page.js",
-  "/auth/login/page": "app/auth/login/page.js",
+  "/appointments/page": "app/appointments/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/forum/[slug]/page": "app/forum/[slug]/page.js"
+  "/admin/login/page": "app/admin/login/page.js",
+  "/admin/appointments/page": "app/admin/appointments/page.js",
+  "/admin/dashboard/page": "app/admin/dashboard/page.js"
 }

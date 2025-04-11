@@ -1,4 +1,4 @@
-// File: C:\Users\krish\cursor-projects\centrosv2\app\dashboard\layout.tsx
+// File: C:\Users\krish\cursor\centrosv2\app\dashboard\layout.tsx
 import * as entry from '../../../../app/dashboard/layout.js'
 import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

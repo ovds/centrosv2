@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
+import { supabase } from "@/lib/supabase/client"
 
 interface Counsellor {
   id: string
@@ -14,6 +15,7 @@ type AdminAuthContextType = {
   counsellor: Counsellor | null
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
+  signInWithAzure: () => Promise<void>
 }
 
 const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefined)
@@ -89,8 +91,21 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("adminCounsellor")
   }
 
+  // Azure OAuth sign-in for admin
+  const signInWithAzure = async () => {
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider: "azure",
+        options: { scopes: "email" },
+      })
+    } catch (error) {
+      // Optionally handle error with toast
+      console.error("Azure sign-in failed", error)
+    }
+  }
+
   return (
-    <AdminAuthContext.Provider value={{ isAuthenticated, counsellor, login, logout }}>
+    <AdminAuthContext.Provider value={{ isAuthenticated, counsellor, login, logout, signInWithAzure }}>
       {children}
     </AdminAuthContext.Provider>
   )

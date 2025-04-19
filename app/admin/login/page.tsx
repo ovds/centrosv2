@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import { LockKeyhole } from "lucide-react"
 
 export default function AdminLoginPage() {
-  const { login } = useAdminAuth()
+  const { login, signInWithAzure } = useAdminAuth()
   const router = useRouter()
   const { toast } = useToast()
 
@@ -107,6 +107,15 @@ export default function AdminLoginPage() {
             <CardFooter className="flex flex-col space-y-4">
               <Button className="w-full" type="submit" disabled={isLoading}>
                 {isLoading ? "Signing in..." : "Sign In"}
+              </Button>
+              <Button
+                className="w-full"
+                type="button"
+                variant="outline"
+                onClick={signInWithAzure}
+                disabled={isLoading}
+              >
+                Sign in with Azure
               </Button>
               <div className="text-xs text-center text-muted-foreground">
                 For demonstration purposes, use the following credentials:

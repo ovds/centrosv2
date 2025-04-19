@@ -8,135 +8,178 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/context/auth-context"
-import { useToast } from "@/hooks/use-toast"
+import { AlertCircle } from "lucide-react"
 
 export default function RegisterPage() {
-  const { register } = useAuth()
+  const { register, isLoading } = useAuth()
   const router = useRouter()
-  const { toast } = useToast()
 
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [registrationSuccess, setRegistrationSuccess] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrorMessage(null)
 
+    // Form validation
     if (!name || !email || !password || !confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive"
-      })
+      setErrorMessage("Please fill in all fields")
       return
     }
 
     if (password !== confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Passwords do not match",
-        variant: "destructive"
-      })
+      setErrorMessage("Passwords do not match")
       return
     }
 
-    setIsLoading(true)
+    // Password strength check (simple implementation)
+    if (password.length < 8) {
+      setErrorMessage("Password must be at least 8 characters long")
+      return
+    }
 
     try {
-      // Simple registration that accepts any input
-      register(name, email, password)
+      // Register with Supabase Auth
+      const { success, error } = await register(name, email, password)
 
-      toast({
-        title: "Success",
-        description: "Your account has been created",
-      })
+      if (!success) {
+        setErrorMessage(error || "Registration failed. Please try again.")
+        return
+      }
 
-      // Redirect to dashboard after registration
-      router.push("/dashboard")
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Something went wrong",
-        variant: "destructive"
-      })
-    } finally {
-      setIsLoading(false)
+      // If we're here, registration was successful but requires email verification
+      setRegistrationSuccess(true)
+      
+    } catch (error: any) {
+      setErrorMessage("An unexpected error occurred. Please try again.")
+      console.error("Registration error:", error)
     }
   }
 
-  return (
+  // Show success screen after registration
+  if (registrationSuccess) {
+    return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 p-4">
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
         >
-          <Card className="w-[380px]">
-            <form onSubmit={handleSubmit}>
-              <CardHeader>
-                <CardTitle>Create an account</CardTitle>
-                <CardDescription>
-                  Get started with NUS High Counselling
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                        id="name"
-                        placeholder="John Doe"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                        id="email"
-                        type="email"
-                        placeholder="student@nushigh.edu.sg"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Confirm Password</Label>
-                    <Input
-                        id="confirm-password"
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex flex-col space-y-4">
-                <Button className="w-full" type="submit" disabled={isLoading}>
-                  {isLoading ? "Creating account..." : "Sign Up"}
-                </Button>
-                <div className="text-sm text-center text-muted-foreground">
-                  Already have an account?{" "}
-                  <Link href="/auth/login" className="text-primary hover:underline">
-                    Sign in
-                  </Link>
-                </div>
-              </CardFooter>
-            </form>
+          <Card className="w-[380px] text-center">
+            <CardHeader>
+              <CardTitle>Verify your email</CardTitle>
+              <CardDescription>
+                We've sent a verification email to <span className="font-medium">{email}</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">
+                Please check your inbox and click the verification link to complete your registration.
+              </p>
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                onClick={() => router.push("/auth/login")}
+              >
+                Go to login
+              </Button>
+            </CardContent>
           </Card>
         </motion.div>
       </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <Card className="w-[380px]">
+          <form onSubmit={handleSubmit}>
+            <CardHeader>
+              <CardTitle>Create an account</CardTitle>
+              <CardDescription>
+                Get started with NUS High Counselling
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {errorMessage && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{errorMessage}</AlertDescription>
+                  </Alert>
+                )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="John Doe"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="student@nushigh.edu.sg"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col space-y-4">
+              <Button className="w-full" type="submit" disabled={isLoading}>
+                {isLoading ? "Creating account..." : "Sign Up"}
+              </Button>
+              <div className="text-sm text-center text-muted-foreground">
+                Already have an account?{" "}
+                <Link href="/auth/login" className="text-primary hover:underline">
+                  Sign in
+                </Link>
+              </div>
+            </CardFooter>
+          </form>
+        </Card>
+      </motion.div>
+    </div>
   )
 }

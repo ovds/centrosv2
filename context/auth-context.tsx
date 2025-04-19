@@ -1,55 +1,250 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
+import { supabase, getCurrentUser, signOut } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import { Session } from "@supabase/supabase-js"
+
+type User = {
+    id: string;
+    email: string;
+    name: string;
+    avatar_url?: string;
+};
 
 type AuthContextType = {
-    isAuthenticated: boolean
-    login: (email: string, password: string) => void
-    register: (name: string, email: string, password: string) => void
-    logout: () => void
+    isAuthenticated: boolean;
+    user: User | null;
+    session: Session | null;
+    isLoading: boolean;
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    logout: () => Promise<void>;
+    resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+    updateProfile: (data: Partial<User>) => Promise<{ success: boolean; error?: string }>;
+    signInWithAzure: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    // Initialize auth state from localStorage (if available)
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
+    const [user, setUser] = useState<User | null>(null)
+    const [session, setSession] = useState<Session | null>(null)
+    const [isLoading, setIsLoading] = useState<boolean>(true)
+    const router = useRouter()
+    const { toast } = useToast()
 
-    // Load auth state on mount
+    // Load auth state on mount and set up listener for auth changes
     useEffect(() => {
-        const storedAuth = localStorage.getItem("isAuthenticated")
-        if (storedAuth === "true") {
-            setIsAuthenticated(true)
+        // Get initial session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session)
+            setIsAuthenticated(!!session)
+            if (session) {
+                // Get user profile
+                loadUserProfile()
+            }
+            setIsLoading(false)
+        })
+
+        // Set up auth listener
+        const { data: { subscription }} = supabase.auth.onAuthStateChange(async (event, session) => {
+            setSession(session)
+            setIsAuthenticated(!!session)
+            
+            if (session) {
+                await loadUserProfile()
+            } else {
+                setUser(null)
+            }
+            setIsLoading(false)
+        })
+
+        // Cleanup subscription
+        return () => {
+            subscription.unsubscribe()
         }
     }, [])
 
-    // Simple login function that accepts any credentials
-    const login = (email: string, password: string) => {
-        // Accept any email/password combination for now
-        setIsAuthenticated(true)
-        localStorage.setItem("isAuthenticated", "true")
-        localStorage.setItem("userEmail", email)
+    // Load user profile data
+    const loadUserProfile = async () => {
+        try {
+            const userData = await getCurrentUser()
+            if (userData) {
+                setUser({
+                    id: userData.id,
+                    email: userData.email,
+                    name: userData.name,
+                    avatar_url: userData.avatar_url
+                })
+            }
+        } catch (error) {
+            console.error('Error loading user profile:', error)
+        }
     }
 
-    // Simple registration function
-    const register = (name: string, email: string, password: string) => {
-        // Accept any registration for now
-        setIsAuthenticated(true)
-        localStorage.setItem("isAuthenticated", "true")
-        localStorage.setItem("userName", name)
-        localStorage.setItem("userEmail", email)
+    // Login function with Supabase Auth
+    const login = async (email: string, password: string) => {
+        try {
+            setIsLoading(true)
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+            
+            if (error) {
+                return { success: false, error: error.message }
+            }
+            
+            return { success: true }
+        } catch (error: any) {
+            return { success: false, error: error.message }
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    // Registration function with Supabase Auth
+    const register = async (name: string, email: string, password: string) => {
+        try {
+            setIsLoading(true)
+            
+            // Register user with Supabase Auth
+            const { data, error } = await supabase.auth.signUp({ 
+                email, 
+                password,
+                options: {
+                    data: {
+                        name
+                    }
+                }
+            })
+            
+            if (error) {
+                return { success: false, error: error.message }
+            }
+            
+            // Create profile in profiles table
+            if (data.user) {
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .insert([
+                        { 
+                            id: data.user.id,
+                            name,
+                            email,
+                        }
+                    ])
+                
+                if (profileError) {
+                    return { success: false, error: profileError.message }
+                }
+            }
+            
+            // Show email verification message
+            toast({
+                title: "Verification email sent",
+                description: "Please check your email to verify your account"
+            })
+            
+            return { success: true }
+        } catch (error: any) {
+            return { success: false, error: error.message }
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     // Logout function
-    const logout = () => {
-        setIsAuthenticated(false)
-        localStorage.removeItem("isAuthenticated")
-        localStorage.removeItem("userName")
-        localStorage.removeItem("userEmail")
+    const logout = async () => {
+        setIsLoading(true)
+        await signOut()
+        setUser(null)
+        setIsLoading(false)
+        router.push('/auth/login')
+    }
+    
+    // Reset password
+    const resetPassword = async (email: string) => {
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/auth/reset-password`,
+            })
+            
+            if (error) {
+                return { success: false, error: error.message }
+            }
+            
+            return { success: true }
+        } catch (error: any) {
+            return { success: false, error: error.message }
+        }
+    }
+    
+    // Update user profile
+    const updateProfile = async (data: Partial<User>) => {
+        if (!user) return { success: false, error: 'Not authenticated' }
+        
+        try {
+            // Update profile in database
+            const { error } = await supabase
+                .from('profiles')
+                .update(data)
+                .eq('id', user.id)
+            
+            if (error) {
+                return { success: false, error: error.message }
+            }
+            
+            // Update local state
+            setUser({ ...user, ...data })
+            
+            return { success: true }
+        } catch (error: any) {
+            return { success: false, error: error.message }
+        }
+    }
+
+    // Sign in with Azure (OAuth)
+    const signInWithAzure = async () => {
+        setIsLoading(true)
+        try {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'azure',
+                options: {
+                    scopes: 'email',
+                },
+            })
+            if (error) {
+                toast({
+                    title: 'Azure sign-in failed',
+                    description: error.message,
+                    variant: 'destructive',
+                })
+            }
+        } catch (error: any) {
+            toast({
+                title: 'Azure sign-in failed',
+                description: error.message,
+                variant: 'destructive',
+            })
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, login, register, logout }}>
+        <AuthContext.Provider value={{ 
+            isAuthenticated, 
+            user, 
+            session,
+            isLoading,
+            login, 
+            register, 
+            logout,
+            resetPassword,
+            updateProfile,
+            signInWithAzure
+        }}>
             {children}
         </AuthContext.Provider>
     )

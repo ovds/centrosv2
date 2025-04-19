@@ -5,23 +5,9 @@ import {
   UserButton,
   useUser,
   SignedIn,
-  SignOutButton
 } from "@clerk/nextjs"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Settings, User } from "lucide-react"
-import { Button } from "@/components/ui/button"
 
 export function UserNav() {
-  const router = useRouter()
-  const { user } = useUser()
 
   return (
     <SignedIn>

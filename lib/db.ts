@@ -58,6 +58,14 @@ export async function fetchAppointmentsForStudent(student_email: string): Promis
   return data!
 }
 
+export async function fetchAllStudents(): Promise<Student[]> {
+  const { data, error } = await supabase
+    .from('student')
+    .select('*')
+  if (error) throw error
+  return data!
+}
+
 export async function fetchAllCounsellors(): Promise<Counsellor[]> {
   const { data, error } = await supabase
     .from('counsellor')

@@ -30,7 +30,7 @@ export function SiteHeader() {
               <SheetContent side="left" className="pr-0">
                 <div className="px-2">
                   <Link href="/dashboard" className="flex items-center py-4">
-                    <span className="font-bold text-xl">NUS High</span>
+                    <span className="font-bold text-xl">Centros</span>
                   </Link>
                   <div className="flex flex-col space-y-3 mt-2">
                     <Link href="/dashboard" className="flex items-center text-sm font-medium px-2 py-1.5 rounded-md hover:bg-accent">

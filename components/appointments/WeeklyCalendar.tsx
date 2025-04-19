@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO, getHours, getMinutes } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import type { Appointment as AppointmentType, AppointmentStatus } from '@/types/types';
+import { Badge } from '@/components/ui/badge';
+import type { Appointment as AppointmentType, AppointmentStatus, Student, Counsellor } from '@/types/types';
 
 // Business hours configuration
 const BUSINESS_START_HOUR = 8; // 8 AM
@@ -84,39 +85,26 @@ const formatTimeRange = (startHour: number, startMinute: number, endHour: number
     return `${formatTime(startHour, startMinute)} - ${formatTime(endHour, endMinute)}`;
 };
 
-// Create a function to generate consistent colors for counselors based on their ID
-const getCounselorColor = (id: string): string => {
-    // Simple hash function to convert counselor ID to a number
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-        hash = id.charCodeAt(i) + ((hash << 5) - hash);
+// Get color based on appointment status
+const getStatusColor = (status?: AppointmentStatus): string => {
+    if (!status) return "bg-gray-500 text-white"; // Default color
+    
+    switch(status) {
+        case 'confirmed':
+            return "bg-green-500 text-white";
+        case 'cancelled':
+            return "bg-red-500 text-white";
+        case 'requested':
+        default:
+            return "bg-amber-500 text-white";
     }
-    
-    // Convert hash to a color - this creates a palette of colors that are visually distinct
-    const colors = [
-        'bg-blue-500 text-white',       // Blue
-        'bg-green-500 text-white',      // Green
-        'bg-purple-500 text-white',     // Purple
-        'bg-amber-500 text-white',      // Amber
-        'bg-pink-500 text-white',       // Pink
-        'bg-teal-500 text-white',       // Teal
-        'bg-orange-500 text-white',     // Orange
-        'bg-indigo-500 text-white',     // Indigo
-        'bg-rose-500 text-white',       // Rose
-        'bg-cyan-500 text-white',       // Cyan
-        'bg-lime-500 text-white',       // Lime
-        'bg-violet-500 text-white',     // Violet
-    ];
-    
-    const index = Math.abs(hash) % colors.length;
-    return colors[index];
 };
 
 // Props interface for WeeklyCalendar
 interface WeeklyCalendarProps {
     selectedCounselorId: string | null;
     appointments: Appointment[];
-    counselors: { id: string; name: string }[];
+    counselors: Counsellor[];
     onSaveAppointment: (appointment: Appointment) => void;
     onDeleteAppointment: (id: string) => void;
 }
@@ -352,7 +340,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
         }
 
         // Find the counselor name based on the selected ID
-        const selectedCounselor = counselors.find(c => c.id === newAppointment.counselorId);
+        const selectedCounselor = counselors.find(c => c.email === newAppointment.counselorId);
 
         // Create the appointment with the parent's handler
         onSaveAppointment({
@@ -549,7 +537,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                                 key={`appointment-${appointment.id}`}
                                 className={cn(
                                     "absolute rounded-md p-2 text-sm",
-                                    getCounselorColor(appointment.counselorId),
+                                    getStatusColor(appointment.status),
                                     "flex flex-col overflow-hidden hover:z-20 hover:shadow-lg transition-shadow cursor-pointer",
                                     "m-0.5"
                                 )}
@@ -566,8 +554,20 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                                 }}
                                 onClick={(e) => handleAppointmentClick(appointment, e)}
                             >
-                                <div className="font-medium truncate">
-                                    {appointment.title}
+                                <div className="font-medium truncate flex justify-between items-start">
+                                    <span className="truncate mr-1">{appointment.title}</span>
+                                    {/* Status indicator */}
+                                    {appointment.status && (
+                                        <div className="flex-shrink-0">
+                                            {appointment.status === 'confirmed' ? (
+                                                <CheckCircle className="h-4 w-4 text-white" />
+                                            ) : appointment.status === 'cancelled' ? (
+                                                <XCircle className="h-4 w-4 text-white" />
+                                            ) : (
+                                                <Clock className="h-4 w-4 text-white animate-pulse" />
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="text-xs opacity-90">
                                     {formatTimeRange(
@@ -624,7 +624,19 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                         </DialogHeader>
 
                         <div className="py-4">
-                            <h3 className="text-xl font-semibold mb-2">{selectedAppointment.title}</h3>
+                            <div className="flex justify-between items-center mb-2">
+                                <h3 className="text-xl font-semibold">{selectedAppointment.title}</h3>
+                                {selectedAppointment.status && (
+                                    <Badge className={cn(
+                                        selectedAppointment.status === 'confirmed' ? "bg-green-500 hover:bg-green-600" : 
+                                        selectedAppointment.status === 'cancelled' ? "bg-red-500 hover:bg-red-600" : 
+                                        "bg-amber-500 hover:bg-amber-600"
+                                    )}>
+                                        {selectedAppointment.status === 'requested' ? 'Pending' : 
+                                         selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1)}
+                                    </Badge>
+                                )}
+                            </div>
 
                             <div className="grid gap-4">
                                 <div className="flex justify-between text-sm">
@@ -745,7 +757,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                                 </SelectTrigger>
                                 <SelectContent>
                                     {counselors.map(counselor => (
-                                        <SelectItem key={counselor.id} value={counselor.id}>
+                                        <SelectItem key={counselor.email} value={counselor.email}>
                                             {counselor.name}
                                         </SelectItem>
                                     ))}

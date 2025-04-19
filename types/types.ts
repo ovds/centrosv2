@@ -3,7 +3,7 @@
 export type UserRole = 'student' | 'counsellor' | 'admin'
 export type StudentGender = 'male' | 'female' | 'other' | 'prefer_not_to_say'
 export type HouseType = 'fibonacci' | 'fleming' | 'faraday' | 'nobel'
-export type AppointmentStatus = 'requested' | 'confirmed' | 'cancelled' | 'completed' | 'no_show'
+export type AppointmentStatus = 'requested' | 'confirmed' | 'cancelled'
 export type ApplicationStatus =
   | 'planning'
   | 'in_progress'
@@ -74,6 +74,7 @@ export interface Appointment {
   created_at: string
   updated_at: string
 }
+
 
 export interface ForumCategory {
   forum_category_name: string

@@ -10,15 +10,22 @@ export default function AuthenticatedLayout({
                                             }: {
     children: React.ReactNode
 }) {
-    const { isAuthenticated } = useAuth()
+    const { isAuthenticated, user } = useAuth()
     const router = useRouter()
 
     useEffect(() => {
         // If not authenticated, redirect to login
         if (!isAuthenticated) {
             router.push("/auth/login")
+            return
         }
-    }, [isAuthenticated, router])
+        
+        // If authenticated as a counsellor, redirect to admin dashboard
+        // This ensures counsellors don't end up in the student interface
+        if (user?.role === 'counsellor') {
+            router.push("/admin/dashboard")
+        }
+    }, [isAuthenticated, router, user])
 
     // If authentication is still being determined, show a blank page
     if (!isAuthenticated) {

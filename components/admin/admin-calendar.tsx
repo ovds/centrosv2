@@ -24,8 +24,9 @@ import {
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
 import { Textarea } from '@/components/ui/textarea';
-import { useAdminAuth } from '@/context/admin-auth-context';
+import { useSupabaseAdminAuth } from '@/context/supabase-admin-auth-context';
 import { useToast } from '@/hooks/use-toast';
+import { Appointment } from '@/lib/appointment-service';
 
 // Business hours configuration
 const BUSINESS_START_HOUR = 8; // 8 AM
@@ -35,25 +36,6 @@ const BUSINESS_END_HOUR = 18; // 6 PM
 interface TimeSlot {
     hour: number;
     minute: number;
-}
-
-export interface Appointment {
-    id: number;
-    title: string;
-    studentName: string;
-    studentEmail?: string;
-    studentId?: string;
-    day: Date;
-    startHour: number;
-    startMinute: number;
-    endHour: number;
-    endMinute: number;
-    counsellorId: string;
-    counsellorName: string;
-    type: string;
-    notes: string;
-    status: 'pending' | 'confirmed' | 'cancelled';
-    counsellorNotes?: string;
 }
 
 // Create time slots for the day based on business hours
@@ -85,8 +67,8 @@ const formatTimeRange = (startHour: number, startMinute: number, endHour: number
 
 interface AdminCalendarProps {
     appointments: Appointment[];
-    onConfirmAppointment: (id: number, notes: string) => void;
-    onCancelAppointment: (id: number, reason: string) => void;
+    onConfirmAppointment: (id: string, notes: string) => Promise<void>;
+    onCancelAppointment: (id: string, reason: string) => Promise<void>;
 }
 
 const AdminCalendar: React.FC<AdminCalendarProps> = ({
@@ -104,8 +86,10 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
     const [cancelDialogOpen, setCancelDialogOpen] = useState<boolean>(false);
     const [counsellorNotes, setCounsellorNotes] = useState<string>('');
     const [cancelReason, setCancelReason] = useState<string>('');
+    const [isConfirming, setIsConfirming] = useState<boolean>(false);
+    const [isCancelling, setIsCancelling] = useState<boolean>(false);
     
-    const { counsellor } = useAdminAuth();
+    const { counsellor } = useSupabaseAdminAuth();
     const { toast } = useToast();
     
     // Media query hooks
@@ -167,38 +151,51 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
     };
 
     // Handle confirming an appointment
-    const handleConfirmAppointment = () => {
+    const handleConfirmAppointment = async () => {
         if (!selectedAppointment) return;
         
-        onConfirmAppointment(selectedAppointment.id, counsellorNotes);
-        
-        toast({
-            title: "Appointment Confirmed",
-            description: `Appointment with ${selectedAppointment.studentName} has been confirmed`,
-        });
-        
-        // Reset state
-        setConfirmDialogOpen(false);
-        setCounsellorNotes('');
-        setSelectedAppointment(null);
+        setIsConfirming(true);
+        try {
+            await onConfirmAppointment(selectedAppointment.id, counsellorNotes);
+            
+            // Reset state
+            setConfirmDialogOpen(false);
+            setCounsellorNotes('');
+            setSelectedAppointment(null);
+        } catch (error) {
+            console.error("Error confirming appointment:", error);
+            toast({
+                title: "Error",
+                description: "Failed to confirm appointment",
+                variant: "destructive"
+            });
+        } finally {
+            setIsConfirming(false);
+        }
     };
 
     // Handle cancelling an appointment
-    const handleCancelAppointment = () => {
+    const handleCancelAppointment = async () => {
         if (!selectedAppointment) return;
         
-        onCancelAppointment(selectedAppointment.id, cancelReason);
-        
-        toast({
-            title: "Appointment Cancelled",
-            description: `Appointment with ${selectedAppointment.studentName} has been cancelled`,
-            variant: "destructive"
-        });
-        
-        // Reset state
-        setCancelDialogOpen(false);
-        setCancelReason('');
-        setSelectedAppointment(null);
+        setIsCancelling(true);
+        try {
+            await onCancelAppointment(selectedAppointment.id, cancelReason);
+            
+            // Reset state
+            setCancelDialogOpen(false);
+            setCancelReason('');
+            setSelectedAppointment(null);
+        } catch (error) {
+            console.error("Error cancelling appointment:", error);
+            toast({
+                title: "Error",
+                description: "Failed to cancel appointment",
+                variant: "destructive"
+            });
+        } finally {
+            setIsCancelling(false);
+        }
     };
 
     // Calculate position for appointment on the grid
@@ -216,7 +213,7 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
         const diff = startTime - startTimeSlot; // Difference in minutes
         
         // Find day index
-        const dayIndex = weekDays.findIndex(day => isSameDay(day, appt.day));
+        const dayIndex = weekDays.findIndex(day => isSameDay(day, new Date(appt.day)));
 
         return {
             start: diff / 30 * 3, // Each 30-min slot is 3rem tall
@@ -224,11 +221,6 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
             dayIndex: dayIndex
         };
     };
-
-    // Filter appointments for the counsellor
-    const filteredAppointments = appointments.filter(
-        appt => appt.counsellorId === counsellor?.id
-    );
 
     return (
         <div className="flex flex-col h-full bg-background rounded-md border shadow-sm">
@@ -385,7 +377,7 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
                     ))}
 
                     {/* Appointments overlay */}
-                    {filteredAppointments.map((appointment) => {
+                    {appointments.map((appointment) => {
                         const { start, duration, dayIndex } = getAppointmentPosition(appointment);
 
                         // Skip if not in the visible range
@@ -430,7 +422,7 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
                                     )}
                                 </div>
                                 <div className="text-xs mt-1 truncate">
-                                    {appointment.studentName}
+                                    {appointment.studentName || "Student"}
                                 </div>
                             </div>
                         );
@@ -453,7 +445,7 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
                             <div className="grid gap-4">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-muted-foreground">Student:</span>
-                                    <span className="font-medium">{selectedAppointment.studentName}</span>
+                                    <span className="font-medium">{selectedAppointment.studentName || "Student"}</span>
                                 </div>
 
                                 {selectedAppointment.studentEmail && (
@@ -465,7 +457,7 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
 
                                 <div className="flex justify-between text-sm">
                                     <span className="text-muted-foreground">Date:</span>
-                                    <span className="font-medium">{format(selectedAppointment.day, 'EEEE, MMMM d, yyyy')}</span>
+                                    <span className="font-medium">{format(new Date(selectedAppointment.day), 'EEEE, MMMM d, yyyy')}</span>
                                 </div>
 
                                 <div className="flex justify-between text-sm">
@@ -490,7 +482,7 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
                                     <span className={cn(
                                         "font-medium",
                                         selectedAppointment.status === 'confirmed' ? "text-green-600 dark:text-green-400" :
-                                        selectedAppointment.status === 'pending' ? "text-yellow-600 dark:text-yellow-400" :
+                                        selectedAppointment.status === 'requested' ? "text-yellow-600 dark:text-yellow-400" :
                                         "text-red-600 dark:text-red-400"
                                     )}>
                                         {selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1)}
@@ -522,7 +514,7 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
                                 Close
                             </Button>
 
-                            {selectedAppointment.status === 'pending' && (
+                            {selectedAppointment.status === 'requested' && (
                                 <>
                                     <Button
                                         variant="destructive"
@@ -574,14 +566,16 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
                             variant="outline"
                             onClick={() => setConfirmDialogOpen(false)}
                             className="sm:mr-2 w-full sm:w-auto"
+                            disabled={isConfirming}
                         >
                             Cancel
                         </Button>
                         <Button
                             onClick={handleConfirmAppointment}
                             className="w-full sm:w-auto"
+                            disabled={isConfirming}
                         >
-                            Confirm Appointment
+                            {isConfirming ? "Confirming..." : "Confirm Appointment"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -607,13 +601,15 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
                     </div>
                     
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Keep Appointment</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isCancelling}>
+                            Keep Appointment
+                        </AlertDialogCancel>
                         <AlertDialogAction 
                             onClick={handleCancelAppointment}
-                            disabled={!cancelReason.trim()}
+                            disabled={!cancelReason.trim() || isCancelling}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            Cancel Appointment
+                            {isCancelling ? "Cancelling..." : "Cancel Appointment"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

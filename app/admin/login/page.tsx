@@ -1,66 +1,83 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { useAdminAuth } from "@/context/admin-auth-context"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card"
+import {
+  Alert,
+  AlertDescription
+} from "@/components/ui/alert"
+import { AlertCircle, LockKeyhole } from "lucide-react"
+import { useSupabaseAdminAuth } from "@/context/supabase-admin-auth-context"
 import { useToast } from "@/hooks/use-toast"
-import { LockKeyhole } from "lucide-react"
 
 export default function AdminLoginPage() {
-  const { login, signInWithAzure } = useAdminAuth()
+  const { login, signInWithMicrosoft, isLoading, isAuthenticated } = useSupabaseAdminAuth()
+
   const router = useRouter()
+  // If already authenticated, redirect to admin dashboard
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/admin/dashboard')
+    }
+  }, [isAuthenticated, router])
   const { toast } = useToast()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrorMessage(null)
 
     if (!email || !password) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive"
-      })
+      setErrorMessage("Please fill in all fields")
       return
     }
 
-    setIsLoading(true)
-
     try {
-      const success = await login(email, password)
+      const { success, error } = await login(email, password)
 
-      if (success) {
-        toast({
-          title: "Success",
-          description: "You have been logged in to the Counsellor Portal",
-        })
-
-        // Redirect to admin dashboard after login
-        router.push("/admin/dashboard")
-      } else {
-        toast({
-          title: "Error",
-          description: "Invalid email or password",
-          variant: "destructive"
-        })
+      if (!success) {
+        setErrorMessage(error || "Invalid email or password")
+        return
       }
-    } catch (error) {
+
       toast({
-        title: "Error",
-        description: "Something went wrong",
-        variant: "destructive"
+        title: "Success",
+        description: "You have been logged in to the Counsellor Portal",
       })
-    } finally {
-      setIsLoading(false)
+
+      // Ensure redirection to admin dashboard after login
+      router.push("/admin/dashboard")
+    } catch (error: any) {
+      setErrorMessage("An unexpected error occurred")
+      console.error("Login error:", error)
     }
+  }
+
+  const handleMicrosoftLogin = async () => {
+    try {
+      await signInWithMicrosoft()
+      
+      // We won't manually redirect here as the auth state change will trigger navigation
+      // In the auth context's useEffect hook that watches for authentication changes
+    } catch (error: any) {
+      setErrorMessage("Microsoft login failed. Please try again.")
+      console.error("Microsoft login error:", error)
+    } 
   }
 
   return (
@@ -83,6 +100,13 @@ export default function AdminLoginPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {errorMessage && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{errorMessage}</AlertDescription>
+                  </Alert>
+                )}
+                
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -91,6 +115,7 @@ export default function AdminLoginPage() {
                     placeholder="counsellor@nushigh.edu.sg"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -100,29 +125,30 @@ export default function AdminLoginPage() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
                   />
                 </div>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
-              <Button className="w-full" type="submit" disabled={isLoading}>
+              <Button 
+                className="w-full" 
+                type="submit" 
+                disabled={isLoading}
+              >
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
               <Button
                 className="w-full"
                 type="button"
                 variant="outline"
-                onClick={signInWithAzure}
+                onClick={handleMicrosoftLogin}
                 disabled={isLoading}
               >
-                Sign in with Azure
+                Sign in with Microsoft
               </Button>
               <div className="text-xs text-center text-muted-foreground">
-                For demonstration purposes, use the following credentials:
-                <br />
-                Email: sarah.chen@nushigh.edu.sg
-                <br />
-                Password: password123
+                For testing purposes, ensure you have a counsellor account in the Supabase database
               </div>
             </CardFooter>
           </form>

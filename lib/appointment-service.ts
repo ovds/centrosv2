@@ -3,7 +3,26 @@ import { v4 as uuidv4 } from 'uuid';
 import { Database } from '@/types/supabase';
 
 // Type for appointment data that matches our Supabase schema
-export type AppointmentData = Database['public']['Tables']['Appointment']['Row'];
+// Appointment data type matching the schema in the database
+export interface AppointmentData {
+  appointment_id: string;
+  counsellor_id: string;
+  student_id: string;
+  title: string;
+  start_time: string; // Date stored as string
+  end_time: string; // Date stored as string
+  description: string | null;
+  location: string | null;
+  appointment_type: 'academic' | 'career' | 'personal' | 'other';
+  status: 'requested' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
+  cancellation_reason: string | null;
+  counsellor_notes: string | null;
+  student_notes: string | null;
+  is_recurring: boolean;
+  recurring_pattern: any | null;
+  created_at: string;
+  updated_at: string;
+};
 
 // Type for the appointment interface used in the UI components
 export interface Appointment {
@@ -24,13 +43,25 @@ export interface Appointment {
   status: 'requested' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
   counsellorNotes?: string;
   location?: string;
+  isRecurring?: boolean;
+  recurringPattern?: any;
 }
 
 // Convert database appointment to UI appointment
 export function dbAppointmentToUIAppointment(dbAppointment: AppointmentData, studentName?: string, counsellorName?: string): Appointment {
-  // Parse the start and end times
-  const startTime = new Date(dbAppointment.start_time);
-  const endTime = new Date(dbAppointment.end_time);
+  // Parse the start and end times - handling both date and datetime formats
+  const parseTimeString = (timeString: string) => {
+    const date = new Date(timeString);
+    if (isNaN(date.getTime())) {
+      // If parsing failed, try to handle it as a simple date
+      const [year, month, day] = timeString.split('-').map(Number);
+      return new Date(year, month - 1, day, 9, 0); // Default to 9 AM if only date provided
+    }
+    return date;
+  };
+
+  const startTime = parseTimeString(dbAppointment.start_time);
+  const endTime = parseTimeString(dbAppointment.end_time);
   
   return {
     id: dbAppointment.appointment_id,
@@ -49,6 +80,8 @@ export function dbAppointmentToUIAppointment(dbAppointment: AppointmentData, stu
     status: dbAppointment.status,
     counsellorNotes: dbAppointment.counsellor_notes || '',
     location: dbAppointment.location || '',
+    isRecurring: dbAppointment.is_recurring,
+    recurringPattern: dbAppointment.recurring_pattern,
   };
 }
 
@@ -64,13 +97,18 @@ export function uiAppointmentToDbAppointment(uiAppointment: Appointment): Omit<A
   const endTime = new Date(day);
   endTime.setHours(uiAppointment.endHour, uiAppointment.endMinute, 0, 0);
   
+  // Format dates for database - use simple date format YYYY-MM-DD for PostgreSQL
+  const formatDateForDb = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+  
   return {
     appointment_id: uiAppointment.id || uuidv4(),
     counsellor_id: uiAppointment.counsellorId,
     student_id: uiAppointment.studentId || '',
     title: uiAppointment.title,
-    start_time: startTime.toISOString(),
-    end_time: endTime.toISOString(),
+    start_time: formatDateForDb(startTime),
+    end_time: formatDateForDb(endTime),
     description: uiAppointment.notes || null,
     location: uiAppointment.location || null,
     appointment_type: uiAppointment.type,
@@ -78,8 +116,8 @@ export function uiAppointmentToDbAppointment(uiAppointment: Appointment): Omit<A
     cancellation_reason: null,
     counsellor_notes: uiAppointment.counsellorNotes || null,
     student_notes: null,
-    is_recurring: false,
-    recurring_pattern: null,
+    is_recurring: uiAppointment.isRecurring || false,
+    recurring_pattern: uiAppointment.recurringPattern || null,
   };
 }
 

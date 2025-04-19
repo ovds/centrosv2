@@ -113,15 +113,8 @@ export default function AppointmentsPage() {
           .from('appointments')
           .select('*')
         
-        // If user is a student, only fetch their appointments
-        if (user.role === 'student') {
-          query = query.eq('student_id', user.id)
-        }
-        // If user is a counsellor, only fetch their appointments
-        else if (user.role === 'counsellor') {
-          query = query.eq('counsellor_id', user.id)
-        }
-        
+        query = query.eq('student_id', user.id)
+
         const { data, error } = await query.order('date', { ascending: true })
         
         if (error) throw error

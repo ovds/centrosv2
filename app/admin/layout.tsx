@@ -1,4 +1,4 @@
-import { AdminAuthProvider } from "@/context/admin-auth-context"
+import { SupabaseAdminAuthProvider } from "@/context/supabase-admin-auth-context"
 
 export default function AdminRootLayout({
   children,
@@ -6,8 +6,8 @@ export default function AdminRootLayout({
   children: React.ReactNode
 }) {
   return (
-    <AdminAuthProvider>
+    <SupabaseAdminAuthProvider>
       {children}
-    </AdminAuthProvider>
+    </SupabaseAdminAuthProvider>
   )
 }

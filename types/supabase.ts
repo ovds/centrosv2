@@ -1,4 +1,4 @@
-export type Json = any;
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export interface Database {
   public: {
@@ -148,43 +148,6 @@ export interface Database {
           availability_schedule?: Json | null;
           created_at?: string;
           updated_at?: string;
-        };
-      };
-      Major: {
-        Row: {
-          user_id: string;
-          major: string;
-          is_primary: boolean;
-        };
-        Insert: {
-          user_id: string;
-          major: string;
-          is_primary?: boolean;
-        };
-        Update: {
-          user_id?: string;
-          major?: string;
-          is_primary?: boolean;
-        };
-      };
-      Honour: {
-        Row: {
-          user_id: string;
-          honour: string;
-          year: number | null;
-          description: string | null;
-        };
-        Insert: {
-          user_id: string;
-          honour: string;
-          year?: number | null;
-          description?: string | null;
-        };
-        Update: {
-          user_id?: string;
-          honour?: string;
-          year?: number | null;
-          description?: string | null;
         };
       };
       Appointment: {
@@ -454,6 +417,43 @@ export interface Database {
           updated_at?: string;
         };
       };
+      Major: {
+        Row: {
+          user_id: string;
+          major: string;
+          is_primary: boolean;
+        };
+        Insert: {
+          user_id: string;
+          major: string;
+          is_primary?: boolean;
+        };
+        Update: {
+          user_id?: string;
+          major?: string;
+          is_primary?: boolean;
+        };
+      };
+      Honour: {
+        Row: {
+          user_id: string;
+          honour: string;
+          year: number | null;
+          description: string | null;
+        };
+        Insert: {
+          user_id: string;
+          honour: string;
+          year?: number | null;
+          description?: string | null;
+        };
+        Update: {
+          user_id?: string;
+          honour?: string;
+          year?: number | null;
+          description?: string | null;
+        };
+      };
       Notification: {
         Row: {
           notification_id: string;
@@ -492,6 +492,265 @@ export interface Database {
           created_at?: string;
         };
       };
+      University: {
+        Row: {
+          university_id: string;
+          name: string;
+          country: string;
+          region: string | null;
+          website: string | null;
+          logo_url: string | null;
+          description: string | null;
+          acceptance_rate: number | null;
+          average_gpa: number | null;
+          ranking: number | null;
+          notable_programs: string | null;
+          application_tips: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          university_id?: string;
+          name: string;
+          country: string;
+          region?: string | null;
+          website?: string | null;
+          logo_url?: string | null;
+          description?: string | null;
+          acceptance_rate?: number | null;
+          average_gpa?: number | null;
+          ranking?: number | null;
+          notable_programs?: string | null;
+          application_tips?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          university_id?: string;
+          name?: string;
+          country?: string;
+          region?: string | null;
+          website?: string | null;
+          logo_url?: string | null;
+          description?: string | null;
+          acceptance_rate?: number | null;
+          average_gpa?: number | null;
+          ranking?: number | null;
+          notable_programs?: string | null;
+          application_tips?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      Application: {
+        Row: {
+          application_id: string;
+          student_id: string;
+          university_id: string;
+          program: string;
+          degree_type: 'bachelor' | 'master' | 'phd' | 'other';
+          application_status: 'planning' | 'in_progress' | 'submitted' | 'interview' | 'accepted' | 'rejected' | 'waitlisted' | 'deferred' | 'enrolled';
+          priority: 'high' | 'medium' | 'low';
+          application_deadline: string | null;
+          submission_date: string | null;
+          result_date: string | null;
+          counsellor_id: string | null;
+          application_method: string | null;
+          application_fee: number | null;
+          scholarship_applied: boolean;
+          scholarship_details: string | null;
+          essay_topics: string | null;
+          interview_notes: string | null;
+          decision_letter_url: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          application_id?: string;
+          student_id: string;
+          university_id: string;
+          program: string;
+          degree_type: 'bachelor' | 'master' | 'phd' | 'other';
+          application_status: 'planning' | 'in_progress' | 'submitted' | 'interview' | 'accepted' | 'rejected' | 'waitlisted' | 'deferred' | 'enrolled';
+          priority?: 'high' | 'medium' | 'low';
+          application_deadline?: string | null;
+          submission_date?: string | null;
+          result_date?: string | null;
+          counsellor_id?: string | null;
+          application_method?: string | null;
+          application_fee?: number | null;
+          scholarship_applied?: boolean;
+          scholarship_details?: string | null;
+          essay_topics?: string | null;
+          interview_notes?: string | null;
+          decision_letter_url?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          application_id?: string;
+          student_id?: string;
+          university_id?: string;
+          program?: string;
+          degree_type?: 'bachelor' | 'master' | 'phd' | 'other';
+          application_status?: 'planning' | 'in_progress' | 'submitted' | 'interview' | 'accepted' | 'rejected' | 'waitlisted' | 'deferred' | 'enrolled';
+          priority?: 'high' | 'medium' | 'low';
+          application_deadline?: string | null;
+          submission_date?: string | null;
+          result_date?: string | null;
+          counsellor_id?: string | null;
+          application_method?: string | null;
+          application_fee?: number | null;
+          scholarship_applied?: boolean;
+          scholarship_details?: string | null;
+          essay_topics?: string | null;
+          interview_notes?: string | null;
+          decision_letter_url?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      Activity_Log: {
+        Row: {
+          log_id: string;
+          user_id: string | null;
+          action_type: string;
+          entity_type: string;
+          entity_id: string | null;
+          description: string | null;
+          previous_value: Json | null;
+          new_value: Json | null;
+          ip_address: string | null;
+          user_agent: string | null;
+          created_at: string;
+        };
+        Insert: {
+          log_id?: string;
+          user_id?: string | null;
+          action_type: string;
+          entity_type: string;
+          entity_id?: string | null;
+          description?: string | null;
+          previous_value?: Json | null;
+          new_value?: Json | null;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          log_id?: string;
+          user_id?: string | null;
+          action_type?: string;
+          entity_type?: string;
+          entity_id?: string | null;
+          description?: string | null;
+          previous_value?: Json | null;
+          new_value?: Json | null;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+      };
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      user_role: 'student' | 'counsellor' | 'admin';
+      student_gender: 'male' | 'female' | 'other' | 'prefer_not_to_say';
+      appointment_type: 'academic' | 'career' | 'personal' | 'other';
+      appointment_status: 'requested' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
+      application_degree_type: 'bachelor' | 'master' | 'phd' | 'other';
+      application_status: 'planning' | 'in_progress' | 'submitted' | 'interview' | 'accepted' | 'rejected' | 'waitlisted' | 'deferred' | 'enrolled';
+      application_priority: 'high' | 'medium' | 'low';
+      notification_type: 'appointment' | 'discussion' | 'resource' | 'application' | 'system';
+      notification_priority: 'low' | 'normal' | 'high';
+      resource_type_enum: 'pdf' | 'video' | 'link' | 'document' | 'image' | 'audio' | 'other';
+    };
+    CompositeTypes: {
+      [_ in never]: never;
     };
   };
 }
+
+// Custom types for use with the app
+export type UserRole = Database['public']['Enums']['user_role'];
+export type AppointmentStatus = Database['public']['Enums']['appointment_status'];
+export type AppointmentType = Database['public']['Enums']['appointment_type'];
+export type ResourceType = Database['public']['Enums']['resource_type_enum'];
+export type NotificationType = Database['public']['Enums']['notification_type'];
+
+// User profile types
+export type UserProfile = {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  avatar_url?: string;
+  created_at: string;
+};
+
+export type StudentProfile = UserProfile & {
+  role: 'student';
+  class?: string;
+  graduation_year?: number;
+  gender?: Database['public']['Enums']['student_gender'];
+  contact_number?: string;
+  parent_email?: string;
+};
+
+export type CounsellorProfile = UserProfile & {
+  role: 'counsellor';
+  title?: string;
+  specialization?: string;
+  office_location?: string;
+  contact_number?: string;
+  office_hours?: string;
+};
+
+// Appointment type for frontend use
+export type AppointmentFrontend = {
+  id: string;
+  title: string;
+  student_id: string;
+  student_name: string;
+  student_email?: string;
+  counsellor_id: string;
+  counsellor_name: string;
+  date: Date;
+  start_time: string;
+  end_time: string;
+  type: AppointmentType;
+  notes?: string;
+  status: AppointmentStatus;
+  counsellor_notes?: string;
+  student_notes?: string;
+  created_at: Date;
+};
+
+// Forum types for frontend use
+export type ForumCategory = Database['public']['Tables']['Forum_Category']['Row'];
+export type Discussion = Database['public']['Tables']['Discussion']['Row'] & {
+  author_name?: string;
+  category_name?: string;
+  replies_count?: number;
+};
+export type DiscussionReply = Database['public']['Tables']['Discussion_Reply']['Row'] & {
+  author_name?: string;
+};
+
+// Resource types for frontend use
+export type ResourceCategory = Database['public']['Tables']['Resource_Category']['Row'];
+export type Resource = Database['public']['Tables']['Resource']['Row'] & {
+  uploader_name?: string;
+  category_name?: string;
+};
+
+// Notification type for frontend use
+export type Notification = Database['public']['Tables']['Notification']['Row'];

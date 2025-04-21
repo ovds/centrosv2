@@ -12,19 +12,13 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { useAuth } from "@/context/auth-context"
+import { SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs"
 
 export function SiteHeader() {
-  const { isAuthenticated } = useAuth()
-
-  // If not authenticated, don't render the header
-  if (!isAuthenticated) {
-    return null
-  }
-
   return (
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex h-16 items-center px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container mx-auto flex h-16 items-center px-4 sm:px-6 lg:px-8">
+        <SignedIn>
           <div className="mr-4 md:hidden">
             <Sheet>
               <SheetTrigger asChild>
@@ -77,7 +71,28 @@ export function SiteHeader() {
               <UserNav />
             </div>
           </div>
-        </div>
-      </header>
+        </SignedIn>
+
+        <SignedOut>
+          <div className="flex-1 flex items-center justify-between">
+            <Link href="/" className="flex items-center">
+              <span className="font-bold text-xl">NUS High</span>
+            </Link>
+            
+            <div className="flex items-center space-x-4">
+              <ModeToggle />
+              <SignInButton mode="modal">
+                <Button variant="ghost" size="sm">
+                  Sign In
+                </Button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <Button>Sign Up</Button>
+              </SignUpButton>
+            </div>
+          </div>
+        </SignedOut>
+      </div>
+    </header>
   )
 }

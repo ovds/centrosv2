@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,16 +10,39 @@ import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, MessageCircle, ThumbsUp } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
-import { Discussion, Reply } from "../types"
+import { Discussion, DiscussionReply, UserRole } from "@/types/types"
+import { getAuthorName, repliesData } from "../data"
 
 interface DiscussionDetailClientProps {
   initialDiscussion?: Discussion
 }
 
+interface DiscussionWithReplies extends Discussion {
+  replies: DiscussionReply[]
+}
+
 export default function DiscussionDetailClient({ initialDiscussion }: DiscussionDetailClientProps) {
   const router = useRouter()
   const [newReply, setNewReply] = useState("")
-  const [discussion, setDiscussion] = useState<Discussion | undefined>(initialDiscussion)
+  const [discussion, setDiscussion] = useState<DiscussionWithReplies | undefined>(
+    initialDiscussion ? {
+      ...initialDiscussion,
+      replies: repliesData[initialDiscussion.discussion_id] || []
+    } : undefined
+  )
+  const [replyLikes, setReplyLikes] = useState<Record<string, number>>({})
+  const [postLikes, setPostLikes] = useState(0)
+
+  // Initialize reply likes
+  useEffect(() => {
+    if (discussion) {
+      const initialLikes: Record<string, number> = {};
+      discussion.replies.forEach(reply => {
+        initialLikes[reply.reply_id] = 0;
+      });
+      setReplyLikes(initialLikes);
+    }
+  }, [discussion]);
 
   if (!discussion) {
     return (
@@ -35,12 +58,19 @@ export default function DiscussionDetailClient({ initialDiscussion }: Discussion
 
   const handleAddReply = () => {
     if (!newReply.trim()) return
-    const reply: Reply = {
-      id: uuidv4(),
-      author: "Current User", // In a real app, this would come from auth
+    
+    const now = new Date().toISOString();
+    const reply: DiscussionReply = {
+      reply_id: uuidv4(),
+      discussion_id: discussion.discussion_id,
       content: newReply,
-      date: "Just now",
-      likes: 0
+      author_id: "current-user", // In a real app, this would come from auth
+      author_type: "student" as UserRole, // In a real app, this would come from auth
+      parent_reply_id: null,
+      is_anonymous: false,
+      is_solution: false,
+      created_at: now,
+      updated_at: now
     }
 
     const updatedDiscussion = {
@@ -48,29 +78,39 @@ export default function DiscussionDetailClient({ initialDiscussion }: Discussion
       replies: [...discussion.replies, reply]
     }
 
+    // Update reply likes state
+    setReplyLikes(prev => ({
+      ...prev,
+      [reply.reply_id]: 0
+    }));
+
     setDiscussion(updatedDiscussion)
     setNewReply("")
   }
 
   const handleLikeReply = (replyId: string) => {
-    const updatedReplies = discussion.replies.map((reply) => {
-      if (reply.id === replyId) {
-        return { ...reply, likes: reply.likes + 1 }
-      }
-      return reply
-    })
-    setDiscussion({
-      ...discussion,
-      replies: updatedReplies
-    })
+    setReplyLikes(prev => ({
+      ...prev,
+      [replyId]: (prev[replyId] || 0) + 1
+    }));
   }
 
   const handleLikePost = () => {
-    setDiscussion({
-      ...discussion,
-      likes: discussion.likes + 1
-    })
+    setPostLikes(prev => prev + 1);
   }
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+    if (diffHours < 48) return 'Yesterday';
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -94,11 +134,12 @@ export default function DiscussionDetailClient({ initialDiscussion }: Discussion
               <div>
                 <CardTitle className="text-2xl font-bold">{discussion.title}</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Posted by {discussion.author} • {discussion.date}
+                  Posted by {getAuthorName(discussion.author_id)} • {formatDate(discussion.created_at)}
                 </p>
               </div>
+              {/* Get category name from category_id */}
               <span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
-                {discussion.category}
+                {discussion.category_id.charAt(0).toUpperCase() + discussion.category_id.slice(1)}
               </span>
             </div>
           </CardHeader>
@@ -112,7 +153,7 @@ export default function DiscussionDetailClient({ initialDiscussion }: Discussion
                 onClick={handleLikePost}
               >
                 <ThumbsUp className="h-4 w-4" />
-                {discussion.likes} likes
+                {postLikes} likes
               </Button>
               <div className="flex items-center">
                 <MessageCircle className="mr-1 h-4 w-4" />
@@ -128,7 +169,7 @@ export default function DiscussionDetailClient({ initialDiscussion }: Discussion
             <div className="space-y-6">
               {discussion.replies.map((reply) => (
                 <motion.div
-                  key={reply.id}
+                  key={reply.reply_id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4 }}
@@ -138,14 +179,16 @@ export default function DiscussionDetailClient({ initialDiscussion }: Discussion
                       <div className="flex space-x-4">
                         <Avatar>
                           <AvatarFallback>
-                            {reply.author.charAt(0)}
+                            {getAuthorName(reply.author_id).charAt(0)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
-                            <h3 className="font-medium">{reply.author}</h3>
+                            <h3 className="font-medium">
+                              {reply.is_anonymous ? "Anonymous" : getAuthorName(reply.author_id)}
+                            </h3>
                             <span className="text-xs text-muted-foreground">
-                              {reply.date}
+                              {formatDate(reply.created_at)}
                             </span>
                           </div>
                           <p className="mt-2 text-sm">{reply.content}</p>
@@ -153,10 +196,10 @@ export default function DiscussionDetailClient({ initialDiscussion }: Discussion
                             variant="ghost"
                             size="sm"
                             className="mt-2 text-xs"
-                            onClick={() => handleLikeReply(reply.id)}
+                            onClick={() => handleLikeReply(reply.reply_id)}
                           >
                             <ThumbsUp className="mr-1 h-3.5 w-3.5" />
-                            {reply.likes} likes
+                            {replyLikes[reply.reply_id] || 0} likes
                           </Button>
                         </div>
                       </div>
@@ -191,4 +234,4 @@ export default function DiscussionDetailClient({ initialDiscussion }: Discussion
       </motion.div>
     </div>
   )
-} 
+}

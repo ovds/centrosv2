@@ -6,23 +6,9 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, BookOpen, Calendar, MessageSquare, Users } from "lucide-react"
 import Link from "next/link"
-import { useAuth } from "@/context/auth-context"
 
 export default function Home() {
-  const { isAuthenticated } = useAuth()
   const router = useRouter()
-
-  useEffect(() => {
-    // If already authenticated, redirect to dashboard
-    if (isAuthenticated) {
-      router.push("/dashboard")
-    }
-  }, [isAuthenticated, router])
-
-  // If we're authenticated and about to redirect, don't render the page
-  if (isAuthenticated) {
-    return null
-  }
 
   return (
       <div className="min-h-screen">

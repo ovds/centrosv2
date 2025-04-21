@@ -20,18 +20,40 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { v4 as uuidv4 } from "uuid" 
-import { Discussion, NewDiscussionForm } from "../types"
+import { Discussion, ForumCategory, UserRole } from "@/types/types"
+
+// Form interface for creating a new discussion
+interface NewDiscussionForm {
+  title: string
+  categoryId: string
+  content: string
+}
+
+// Extension of the Discussion interface with UI fields
+interface DiscussionWithAuthor extends Discussion {
+  authorName: string
+  formattedDate: string
+  replyCount: number
+  likeCount: number
+  preview: string
+}
 
 interface CreatePostDialogProps {
   isOpen: boolean
   onClose: () => void
-  onCreatePost: (post: Discussion) => void
+  onCreatePost: (post: DiscussionWithAuthor) => void
+  categories: ForumCategory[]
 }
 
-export function CreatePostDialog({ isOpen, onClose, onCreatePost }: CreatePostDialogProps) {
+export function CreatePostDialog({ 
+  isOpen, 
+  onClose, 
+  onCreatePost,
+  categories 
+}: CreatePostDialogProps) {
   const [form, setForm] = useState<NewDiscussionForm>({
     title: "",
-    category: "Academic",
+    categoryId: categories.length > 0 ? categories[1].category_id : "", // Skip "All" category
     content: ""
   })
 
@@ -43,7 +65,7 @@ export function CreatePostDialog({ isOpen, onClose, onCreatePost }: CreatePostDi
   }
 
   const handleCategoryChange = (value: string) => {
-    setForm((prev) => ({ ...prev, category: value }))
+    setForm((prev) => ({ ...prev, categoryId: value }))
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -51,23 +73,27 @@ export function CreatePostDialog({ isOpen, onClose, onCreatePost }: CreatePostDi
     
     if (!form.title || !form.content) return
 
-    // Create a slug from the title
-    const slug = form.title
-      .toLowerCase()
-      .replace(/[^\w\s]/gi, "")
-      .replace(/\s+/g, "-")
+    const now = new Date().toISOString()
     
     // Create a new discussion object
-    const newDiscussion: Discussion = {
-      id: uuidv4(),
-      slug,
+    const newDiscussion: DiscussionWithAuthor = {
+      discussion_id: uuidv4(),
       title: form.title,
       content: form.content,
-      author: "Current User", // In a real app, this would come from auth
-      date: "Just now",
-      category: form.category as Discussion["category"],
-      likes: 0,
-      replies: [],
+      author_id: "current-user", // In a real app, this would come from auth
+      author_type: "student" as UserRole, // In a real app, this would come from auth
+      category_id: form.categoryId,
+      is_pinned: false,
+      is_closed: false,
+      is_anonymous: false,
+      view_count: 0,
+      created_at: now,
+      updated_at: now,
+      // UI-specific fields
+      authorName: "Current User",
+      formattedDate: "Just now",
+      replyCount: 0,
+      likeCount: 0,
       preview: form.content.substring(0, 100) + (form.content.length > 100 ? "..." : "")
     }
     
@@ -76,7 +102,7 @@ export function CreatePostDialog({ isOpen, onClose, onCreatePost }: CreatePostDi
     // Reset form
     setForm({
       title: "",
-      category: "Academic",
+      categoryId: categories.length > 0 ? categories[1].category_id : "",
       content: ""
     })
   }
@@ -111,17 +137,24 @@ export function CreatePostDialog({ isOpen, onClose, onCreatePost }: CreatePostDi
               Category
             </label>
             <Select 
-              value={form.category} 
+              value={form.categoryId} 
               onValueChange={handleCategoryChange}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Academic">Academic</SelectItem>
-                <SelectItem value="Career">Career</SelectItem>
-                <SelectItem value="Study Groups">Study Groups</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
+                {categories
+                  .filter(category => category.category_id !== "all") // Exclude "All" from selection options
+                  .map(category => (
+                    <SelectItem 
+                      key={category.category_id} 
+                      value={category.category_id}
+                    >
+                      {category.name}
+                    </SelectItem>
+                  ))
+                }
               </SelectContent>
             </Select>
           </div>
@@ -151,4 +184,4 @@ export function CreatePostDialog({ isOpen, onClose, onCreatePost }: CreatePostDi
       </DialogContent>
     </Dialog>
   )
-} 
+}

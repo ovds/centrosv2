@@ -96,10 +96,10 @@ export default function CounsellorsPage() {
                         <Mail className="mr-2 h-4 w-4" />
                         {counsellor.email}
                       </div>
-                      {counsellor.houses && (
+                      {counsellor.house && (
                         <div className="flex items-center text-sm">
                           <Info className="mr-2 h-4 w-4" />
-                          House: {counsellor.houses}
+                          House: {counsellor.house}
                         </div>
                       )}
                     </div>

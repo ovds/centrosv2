@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import type { Appointment as AppointmentType, AppointmentStatus } from '@/types/types';
 
 // Business hours configuration
 const BUSINESS_START_HOUR = 8; // 8 AM
@@ -21,8 +22,9 @@ interface TimeSlot {
     minute: number;
 }
 
+// Frontend-specific appointment interface that transforms the database structure for UI display
 export interface Appointment {
-    id: number;
+    id: string; // Changed from number to string to support UUID
     title: string;
     day: Date;
     startHour: number;
@@ -33,6 +35,7 @@ export interface Appointment {
     counselorName: string;
     type: string;
     notes: string;
+    status?: AppointmentStatus;
 }
 
 interface NewAppointmentData {
@@ -87,7 +90,7 @@ interface WeeklyCalendarProps {
     appointments: Appointment[];
     counselors: { id: string; name: string }[];
     onSaveAppointment: (appointment: Appointment) => void;
-    onDeleteAppointment: (id: number) => void;
+    onDeleteAppointment: (id: string) => void;
 }
 
 const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
@@ -323,7 +326,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
         // Create the appointment with the parent's handler
         onSaveAppointment({
             ...newAppointment,
-            id: Math.max(0, ...appointments.map(a => a.id)) + 1,
+            id: Math.max(0, ...appointments.map(a => parseInt(a.id))) + 1 + '', // Convert to string for UUID
             counselorName: selectedCounselor?.name || 'Unknown'
         });
 
@@ -333,7 +336,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     };
 
     // Handle deleting an appointment
-    const handleDeleteAppointment = (id: number) => {
+    const handleDeleteAppointment = (id: string) => { // Changed from number to string
         onDeleteAppointment(id);
         setSelectedAppointment(null);
     };

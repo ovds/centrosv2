@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { generateUUID } from './utils'
 import type {
   User,
   Student,
@@ -12,7 +13,8 @@ import type {
   ResourceCategory,
   Resource,
   University,
-  Application
+  Application,
+  AppointmentStatus
 } from '@/types/types'
 
 const supabase = createClient(
@@ -22,14 +24,12 @@ const supabase = createClient(
 
 
 export async function fetchUsers(): Promise<User[]> {
-  
   const { data, error } = await supabase.from('users').select('*')
   if (error) throw error
   return data!
 }
 
 export async function fetchStudentById(user_id: string): Promise<Student | null> {
-  
   const { data, error } = await supabase
     .from('student')
     .select('*')
@@ -40,7 +40,6 @@ export async function fetchStudentById(user_id: string): Promise<Student | null>
 }
 
 export async function fetchCounsellorById(user_id: string): Promise<Counsellor | null> {
-  
   const { data, error } = await supabase
     .from('counsellor')
     .select('*')
@@ -50,35 +49,83 @@ export async function fetchCounsellorById(user_id: string): Promise<Counsellor |
   return data
 }
 
-export async function fetchAppointmentsForStudent(student_id: string): Promise<Appointment[]> {
-  
+export async function fetchAppointmentsForStudent(student_email: string): Promise<Appointment[]> {
   const { data, error } = await supabase
     .from('appointment')
     .select('*')
-    .eq('student_id', student_id)
+    .eq('student_email', student_email)
   if (error) throw error
   return data!
 }
 
-export async function fetchForumCategories(): Promise<ForumCategory[]> {
+export async function fetchAllCounsellors(): Promise<Counsellor[]> {
+  const { data, error } = await supabase
+    .from('counsellor')
+    .select('*')
+  if (error) throw error
+  return data!
+}
+
+export async function fetchAllAppointments(): Promise<Appointment[]> {
+  const { data, error } = await supabase
+    .from('appointment')
+    .select('*')
+  if (error) throw error
+  return data!
+}
+
+export async function fetchAppointmentsForCounsellor(counsellor_email: string): Promise<Appointment[]> {
+  const { data, error } = await supabase
+    .from('appointment')
+    .select('*')
+    .eq('counsellor_email', counsellor_email)
+  if (error) throw error
+  return data!
+}
+
+export async function updateAppointmentStatus(
+  appointment_id: string, 
+  status: AppointmentStatus,
+  counsellor_notes?: string,
+  cancellation_reason?: string
+): Promise<void> {
+  const updateData: Partial<Appointment> = { 
+    status,
+    updated_at: new Date().toISOString()
+  }
   
+  if (counsellor_notes) {
+    updateData.counsellor_notes = counsellor_notes
+  }
+  
+  if (cancellation_reason) {
+    updateData.cancellation_reason = cancellation_reason
+  }
+  
+  const { error } = await supabase
+    .from('appointment')
+    .update(updateData)
+    .eq('appointment_id', appointment_id)
+    
+  if (error) throw error
+}
+
+export async function fetchForumCategories(): Promise<ForumCategory[]> {
   const { data, error } = await supabase.from('forum_category').select('*')
   if (error) throw error
   return data!
 }
 
-export async function fetchDiscussions(category_id: string): Promise<Discussion[]> {
-  
+export async function fetchDiscussions(forum_category_name: string): Promise<Discussion[]> {
   const { data, error } = await supabase
     .from('discussion')
     .select('*')
-    .eq('category_id', category_id)
+    .eq('forum_category_name', forum_category_name)
   if (error) throw error
   return data!
 }
 
 export async function fetchReplies(discussion_id: string): Promise<DiscussionReply[]> {
-  
   const { data, error } = await supabase
     .from('discussion_reply')
     .select('*')
@@ -88,35 +135,59 @@ export async function fetchReplies(discussion_id: string): Promise<DiscussionRep
 }
 
 export async function fetchResourceCategories(): Promise<ResourceCategory[]> {
-  
   const { data, error } = await supabase.from('resource_category').select('*')
   if (error) throw error
   return data!
 }
 
-export async function fetchResources(category_id: string): Promise<Resource[]> {
-  
+export async function fetchResources(resource_category_name: string): Promise<Resource[]> {
   const { data, error } = await supabase
     .from('resource')
     .select('*')
-    .eq('category_id', category_id)
+    .eq('resource_category_name', resource_category_name)
   if (error) throw error
   return data!
 }
 
 export async function fetchUniversities(): Promise<University[]> {
-  
   const { data, error } = await supabase.from('university').select('*')
   if (error) throw error
   return data!
 }
 
-export async function fetchApplications(student_id: string): Promise<Application[]> {
-  
+export async function fetchApplications(student_email: string): Promise<Application[]> {
   const { data, error } = await supabase
     .from('application')
     .select('*')
-    .eq('student_id', student_id)
+    .eq('student_email', student_email)
   if (error) throw error
   return data!
+}
+
+export async function createAppointment(appointment: Partial<Appointment>): Promise<Appointment> {
+  // Generate UUID for appointment_id
+  const appointment_id = generateUUID();
+  
+  const { data, error } = await supabase
+    .from('appointment')
+    .insert({
+      appointment_id,
+      ...appointment,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .select()
+    .single()
+  
+  if (error) throw error
+  return data
+}
+
+export async function deleteAppointment(appointment_id: string): Promise<void> {
+  const { error } = await supabase
+    .from('appointment')
+    .delete()
+    .eq('appointment_id', appointment_id)
+  
+  if (error) throw error
 }

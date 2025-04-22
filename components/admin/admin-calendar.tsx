@@ -24,8 +24,16 @@ import {
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
 import { Textarea } from '@/components/ui/textarea';
-import { useAdminAuth } from '@/context/admin-auth-context';
+import { useUser } from "@clerk/nextjs";
+import { createClient } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
+import type { AppointmentStatus } from '@/types/types';
+
+// Initialize Supabase client
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+);
 
 // Business hours configuration
 const BUSINESS_START_HOUR = 8; // 8 AM
@@ -38,7 +46,7 @@ interface TimeSlot {
 }
 
 export interface Appointment {
-    id: number;
+    id: string; // Changed from number to string for UUID
     title: string;
     studentName: string;
     studentEmail?: string;
@@ -85,8 +93,8 @@ const formatTimeRange = (startHour: number, startMinute: number, endHour: number
 
 interface AdminCalendarProps {
     appointments: Appointment[];
-    onConfirmAppointment: (id: number, notes: string) => void;
-    onCancelAppointment: (id: number, reason: string) => void;
+    onConfirmAppointment: (id: string, notes: string) => void; // Changed from number to string
+    onCancelAppointment: (id: string, reason: string) => void; // Changed from number to string
 }
 
 const AdminCalendar: React.FC<AdminCalendarProps> = ({
@@ -105,7 +113,7 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
     const [counsellorNotes, setCounsellorNotes] = useState<string>('');
     const [cancelReason, setCancelReason] = useState<string>('');
     
-    const { counsellor } = useAdminAuth();
+    const { user } = useUser();
     const { toast } = useToast();
     
     // Media query hooks
@@ -227,7 +235,7 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
 
     // Filter appointments for the counsellor
     const filteredAppointments = appointments.filter(
-        appt => appt.counsellorId === counsellor?.id
+        appt => appt.counsellorId === user?.id
     );
 
     return (

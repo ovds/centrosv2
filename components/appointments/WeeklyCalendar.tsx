@@ -84,6 +84,34 @@ const formatTimeRange = (startHour: number, startMinute: number, endHour: number
     return `${formatTime(startHour, startMinute)} - ${formatTime(endHour, endMinute)}`;
 };
 
+// Create a function to generate consistent colors for counselors based on their ID
+const getCounselorColor = (id: string): string => {
+    // Simple hash function to convert counselor ID to a number
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+        hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    // Convert hash to a color - this creates a palette of colors that are visually distinct
+    const colors = [
+        'bg-blue-500 text-white',       // Blue
+        'bg-green-500 text-white',      // Green
+        'bg-purple-500 text-white',     // Purple
+        'bg-amber-500 text-white',      // Amber
+        'bg-pink-500 text-white',       // Pink
+        'bg-teal-500 text-white',       // Teal
+        'bg-orange-500 text-white',     // Orange
+        'bg-indigo-500 text-white',     // Indigo
+        'bg-rose-500 text-white',       // Rose
+        'bg-cyan-500 text-white',       // Cyan
+        'bg-lime-500 text-white',       // Lime
+        'bg-violet-500 text-white',     // Violet
+    ];
+    
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+};
+
 // Props interface for WeeklyCalendar
 interface WeeklyCalendarProps {
     selectedCounselorId: string | null;
@@ -178,9 +206,6 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
 
     // Drag operation handlers
     const handleMouseDown = (day: Date, hour: number, minute: number, e: React.MouseEvent) => {
-        // Don't trigger if no counselor is selected
-        if (!selectedCounselorId) return;
-        
         // Don't trigger for existing appointments
         const slotAppointments = getAppointmentsForTimeSlot(day, hour, minute);
         if (slotAppointments.length > 0) return;
@@ -247,7 +272,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             endMinute = 0;
         }
 
-        // Create new appointment with the selected counselor ID
+        // Create new appointment without pre-selecting counselor
         setNewAppointment({
             day: new Date(dragStart.day),
             startHour,
@@ -255,7 +280,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             endHour,
             endMinute,
             title: '',
-            counselorId: selectedCounselorId!, // Use the selected counselor
+            counselorId: selectedCounselorId || '', // Set empty string if no counselor selected
             type: '',
             notes: ''
         });
@@ -318,15 +343,21 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
 
     // Handle saving new appointment
     const handleSaveAppointment = () => {
-        if (!newAppointment || !selectedCounselorId) return;
+        if (!newAppointment) return;
+        
+        // Ensure a counselor is selected
+        if (!newAppointment.counselorId) {
+            // Could add toast notification here for error feedback
+            return;
+        }
 
         // Find the counselor name based on the selected ID
-        const selectedCounselor = counselors.find(c => c.id === selectedCounselorId);
+        const selectedCounselor = counselors.find(c => c.id === newAppointment.counselorId);
 
         // Create the appointment with the parent's handler
         onSaveAppointment({
             ...newAppointment,
-            id: Math.max(0, ...appointments.map(a => parseInt(a.id))) + 1 + '', // Convert to string for UUID
+            id: Math.max(0, ...appointments.map(a => parseInt(a.id) || 0)) + 1 + '', // Convert to string for UUID
             counselorName: selectedCounselor?.name || 'Unknown'
         });
 
@@ -517,7 +548,8 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                             <div
                                 key={`appointment-${appointment.id}`}
                                 className={cn(
-                                    "absolute rounded-md p-2 bg-primary text-primary-foreground text-sm",
+                                    "absolute rounded-md p-2 text-sm",
+                                    getCounselorColor(appointment.counselorId),
                                     "flex flex-col overflow-hidden hover:z-20 hover:shadow-lg transition-shadow cursor-pointer",
                                     "m-0.5"
                                 )}
@@ -544,6 +576,9 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                                         appointment.endHour,
                                         appointment.endMinute
                                     )}
+                                </div>
+                                <div className="text-xs truncate font-medium mt-1">
+                                    {appointment.counselorName}
                                 </div>
                             </div>
                         );
@@ -693,6 +728,25 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                                     {sessionTypes.map(type => (
                                         <SelectItem key={type} value={type}>
                                             {type}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="counselor">Counselor</Label>
+                            <Select
+                                value={newAppointment?.counselorId || ''}
+                                onValueChange={(value) => setNewAppointment(prev => prev ? {...prev, counselorId: value} : null)}
+                            >
+                                <SelectTrigger id="counselor">
+                                    <SelectValue placeholder="Select counselor" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {counselors.map(counselor => (
+                                        <SelectItem key={counselor.id} value={counselor.id}>
+                                            {counselor.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

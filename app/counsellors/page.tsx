@@ -1,32 +1,43 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, Mail, Clock, Phone } from "lucide-react"
-import Image from "next/image"
+import { Calendar, Mail, Clock, Phone, Info } from "lucide-react"
+import { createClient } from '@supabase/supabase-js'
+import type { Counsellor } from '@/types/types'
 
 export default function CounsellorsPage() {
-  const counsellors = [
-    {
-      name: "Mr Allan",
-      role: "Senior Academic Counsellor",
-      specialization: "University Admissions, Career Planning",
-      availability: "Mon-Fri, 9 AM - 5 PM",
-      email: "allan@nushigh.edu.sg",
-      phone: "+65 6123 4567",
-      image: "h"
-    },
-    {
-      name: "Mr. West",
-      role: "Career Guidance Counsellor",
-      specialization: "Industry Insights, Interview Preparation",
-      availability: "Tue-Thu, 10 AM - 6 PM",
-      email: "west@nushigh.edu.sg",
-      phone: "+65 6123 4568",
-      image: "h"
-    },
-  ]
+  const [counsellors, setCounsellors] = useState<Counsellor[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchCounsellors = async () => {
+      try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+        )
+        
+        const { data, error } = await supabase.from('counsellor').select('*')
+        
+        if (error) {
+          throw error
+        }
+        
+        setCounsellors(data || [])
+      } catch (err) {
+        console.error('Error fetching counsellors:', err)
+        setError('Failed to load counsellors data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCounsellors()
+  }, [])
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -38,43 +49,59 @@ export default function CounsellorsPage() {
       >
         <h1 className="text-4xl font-bold mb-8">Our Counsellors</h1>
         
+        {loading && (
+          <div className="flex justify-center items-center py-16">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        )}
+        
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+            {error}
+          </div>
+        )}
+        
+        {!loading && !error && counsellors.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-lg text-muted-foreground">No counsellors found.</p>
+          </div>
+        )}
+        
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {counsellors.map((counsellor, index) => (
             <motion.div
-              key={counsellor.name}
+              key={counsellor.email}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
             >
-              <Card className="overflow-hidden">
-                <div className="relative h-48 w-full">
-                  <Image
-                    src={counsellor.image}
-                    alt={counsellor.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
+              <Card className="h-full flex flex-col">
                 <CardHeader>
                   <CardTitle>{counsellor.name}</CardTitle>
-                  <CardDescription>{counsellor.role}</CardDescription>
+                  <CardDescription>{counsellor.title || 'Counsellor'}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-grow">
                   <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">{counsellor.specialization}</p>
+                    {counsellor.bio && (
+                      <p className="text-sm text-muted-foreground">{counsellor.bio}</p>
+                    )}
                     <div className="space-y-2">
-                      <div className="flex items-center text-sm">
-                        <Clock className="mr-2 h-4 w-4" />
-                        {counsellor.availability}
-                      </div>
+                      {counsellor.office_hours && (
+                        <div className="flex items-center text-sm">
+                          <Clock className="mr-2 h-4 w-4" />
+                          {counsellor.office_hours}
+                        </div>
+                      )}
                       <div className="flex items-center text-sm">
                         <Mail className="mr-2 h-4 w-4" />
                         {counsellor.email}
                       </div>
-                      <div className="flex items-center text-sm">
-                        <Phone className="mr-2 h-4 w-4" />
-                        {counsellor.phone}
-                      </div>
+                      {counsellor.houses && (
+                        <div className="flex items-center text-sm">
+                          <Info className="mr-2 h-4 w-4" />
+                          House: {counsellor.houses}
+                        </div>
+                      )}
                     </div>
                     <Button className="w-full">
                       <Calendar className="mr-2 h-4 w-4" />

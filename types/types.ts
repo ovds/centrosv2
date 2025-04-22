@@ -2,6 +2,7 @@
 
 export type UserRole = 'student' | 'counsellor' | 'admin'
 export type StudentGender = 'male' | 'female' | 'other' | 'prefer_not_to_say'
+export type HouseType = 'fibonacci' | 'fleming' | 'faraday' | 'nobel' | string
 export type AppointmentType = 'academic' | 'career' | 'personal' | 'other'
 export type AppointmentStatus = 'requested' | 'confirmed' | 'cancelled' | 'completed' | 'no_show'
 export type DegreeType = 'bachelor' | 'master' | 'phd' | 'other'
@@ -16,71 +17,49 @@ export type ApplicationStatus =
   | 'deferred'
   | 'enrolled'
 export type Priority = 'high' | 'medium' | 'low'
-export type NotificationType = 'appointment' | 'discussion' | 'resource' | 'application' | 'system'
-export type NotificationPriority = 'low' | 'normal' | 'high'
 export type ResourceType = 'pdf' | 'video' | 'link' | 'document' | 'image' | 'audio' | 'other'
 
 export interface User {
-  user_id: string
   email: string
-  password_hash: string
   role: UserRole
-  is_active: boolean
-  email_verified: boolean
-  reset_token: string | null
-  reset_token_expires: string | null
   created_at: string
   updated_at: string
   last_login: string | null
 }
 
 export interface Student {
-  user_id: string
+  email: string
   name: string
   class: string | null
+  house: HouseType | null
   graduation_year: number | null
   date_of_birth: string | null
   gender: StudentGender
-  contact_number: string | null
-  address: string | null
-  parent_name: string | null
-  parent_email: string | null
-  parent_contact: string | null
-  profile_picture_url: string | null
   bio: string | null
-  interests: string | null
   created_at: string
   updated_at: string
 }
 
 export interface Counsellor {
-  user_id: string
+  email: string
   name: string
   title: string | null
-  specialization: string | null
   bio: string | null
-  experience_years: number | null
-  qualifications: string | null
-  office_location: string | null
-  contact_number: string | null
+  houses: HouseType
   office_hours: string | null
-  profile_picture_url: string | null
   availability_schedule: Record<string, any> | null
   created_at: string
   updated_at: string
 }
 
 export interface Major {
-  user_id: string
+  email: string
   major: string
-  is_primary: boolean
 }
 
 export interface Honour {
-  user_id: string
+  email: string
   honour: string
-  year: number | null
-  description: string | null
 }
 
 export interface Appointment {
@@ -214,30 +193,3 @@ export interface Application {
   created_at: string
   updated_at: string
 }
-
-export interface Notification {
-  notification_id: string
-  user_id: string
-  title: string
-  content: string
-  notification_type: NotificationType
-  related_id: string | null
-  is_read: boolean
-  is_email_sent: boolean
-  priority: NotificationPriority
-  created_at: string
-}
-
-export interface ActivityLog {
-    log_id: string
-    user_id: string | null
-    action_type: string
-    entity_type: string
-    entity_id: string | null
-    description: string | null
-    previous_value: Record<string, any> | null
-    new_value: Record<string, any> | null
-    ip_address: string | null
-    user_agent: string | null
-    created_at: string
-  }

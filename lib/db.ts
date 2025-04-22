@@ -12,10 +12,8 @@ import type {
   ResourceCategory,
   Resource,
   University,
-  Application,
-  Notification,
-  ActivityLog,
-} from '../types/types.ts'
+  Application
+} from '@/types/types'
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -119,26 +117,6 @@ export async function fetchApplications(student_id: string): Promise<Application
     .from('application')
     .select('*')
     .eq('student_id', student_id)
-  if (error) throw error
-  return data!
-}
-
-export async function fetchNotifications(user_id: string): Promise<Notification[]> {
-  
-  const { data, error } = await supabase
-    .from('notification')
-    .select('*')
-    .eq('user_id', user_id)
-  if (error) throw error
-  return data!
-}
-
-export async function fetchActivityLog(user_id: string): Promise<ActivityLog[]> {
-  
-  const { data, error } = await supabase
-    .from('activity_log')
-    .select('*')
-    .eq('user_id', user_id)
   if (error) throw error
   return data!
 }

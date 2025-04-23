@@ -591,31 +591,24 @@ export default function AppointmentsPage() {
                 >
                     <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
                         <h2 className="text-2xl font-semibold">Book an Appointment</h2>
-                        {selectedCounsellorId ? (
-                            <div className="grid gap-2 w-full sm:w-64 p-3 border rounded-lg bg-secondary/20">
-                                <p className="text-sm text-muted-foreground">Selected Counsellor</p>
-                                <p className="font-medium">{selectedCounsellorName}</p>
-                            </div>
-                        ) : (
-                            <div className="grid gap-2 w-full sm:w-64">
-                                <Label htmlFor="counsellor-select">Select Counsellor</Label>
-                                <Select
-                                    value={selectedCounsellorId ?? ""}
-                                    onValueChange={(value) => setSelectedCounsellorId(value === "" ? null : value)}
-                                >
-                                    <SelectTrigger id="counsellor-select">
-                                        <SelectValue placeholder="Select a counsellor" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {counsellors.map(counsellor => (
-                                            <SelectItem key={counsellor.email} value={counsellor.email}>
-                                                {counsellor.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
+                        <div className="grid gap-2 w-full sm:w-64">
+                            <Label htmlFor="counsellor-select">Select Counsellor</Label>
+                            <Select
+                                value={selectedCounsellorId ?? ""}
+                                onValueChange={(value) => setSelectedCounsellorId(value === "" ? null : value)}
+                            >
+                                <SelectTrigger id="counsellor-select">
+                                    <SelectValue placeholder="Select a counsellor" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {counsellors.map(counsellor => (
+                                        <SelectItem key={counsellor.email} value={counsellor.email}>
+                                            {counsellor.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
                     <div className="text-sm text-muted-foreground mb-6">

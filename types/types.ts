@@ -3,7 +3,7 @@
 export type UserRole = 'student' | 'counsellor' | 'admin'
 export type StudentGender = 'male' | 'female' | 'other' | 'prefer_not_to_say'
 export type HouseType = 'fibonacci' | 'fleming' | 'faraday' | 'nobel'
-export type AppointmentStatus = 'requested' | 'confirmed' | 'cancelled'
+export type AppointmentStatus = 'requested' | 'confirmed' | 'cancelled' | 'unavailable'
 export type ApplicationStatus =
   | 'planning'
   | 'in_progress'

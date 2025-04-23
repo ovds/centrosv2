@@ -25,8 +25,17 @@ import { DatePicker } from "@/components/ui/date-picker"
 import { YearMonthDatePicker } from "@/components/ui/year-month-date-picker"
 import { WeeklyScheduler, WeeklySchedule } from "@/components/ui/weekly-scheduler"
 import { MultiSelectHouses } from "@/components/ui/multi-select-houses"
-import { UserRole, StudentGender, HouseType } from "@/types/types"
-import { format } from "date-fns"
+import { 
+  UserRole, 
+  StudentGender, 
+  HouseType, 
+  Appointment, 
+  Discussion, 
+  DiscussionReply,
+  Application, 
+  Resource
+} from "@/types/types"
+import { format, parseISO, addDays } from "date-fns"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -52,6 +61,19 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState<boolean>(true)
   const [userRole, setUserRole] = useState<UserRole | null>(null)
   
+  // Data state variables
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([])
+  const [todaysAppointments, setTodaysAppointments] = useState<Appointment[]>([])
+  const [discussions, setDiscussions] = useState<Discussion[]>([])
+  const [discussionReplies, setDiscussionReplies] = useState<DiscussionReply[]>([])
+  const [applications, setApplications] = useState<Application[]>([])
+  const [resources, setResources] = useState<Resource[]>([])
+  const [newResourcesCount, setNewResourcesCount] = useState<number>(0)
+  const [studentRequests, setStudentRequests] = useState<number>(0)
+  const [pendingApprovals, setPendingApprovals] = useState<number>(0)
+  const [officeHours, setOfficeHours] = useState<string>("")
+  
   // User form states
   const [userForm, setUserForm] = useState({
     role: "student" as UserRole
@@ -75,62 +97,6 @@ export default function DashboardPage() {
     office_hours: "",
     availability_schedule: DEFAULT_SCHEDULE
   })
-
-  // Student dashboard stats
-  const studentStats = [
-    {
-      title: "Upcoming Appointments",
-      value: "3",
-      description: "Next: Career Guidance (Tomorrow, 2 PM)",
-      icon: Calendar,
-    },
-    {
-      title: "Forum Activity",
-      value: "12",
-      description: "New responses in your threads",
-      icon: MessageSquare,
-    },
-    {
-      title: "Applications",
-      value: "5",
-      description: "2 pending, 3 submitted",
-      icon: FileText,
-    },
-    {
-      title: "Resources",
-      value: "28",
-      description: "New materials this week",
-      icon: BookOpen,
-    },
-  ]
-
-  // Counsellor dashboard stats
-  const counsellorStats = [
-    {
-      title: "Today's Appointments",
-      value: "4",
-      description: "Next: John Doe (2 PM)",
-      icon: Calendar,
-    },
-    {
-      title: "Student Requests",
-      value: "7",
-      description: "3 pending approvals",
-      icon: Users,
-    },
-    {
-      title: "Forum Questions",
-      value: "9",
-      description: "4 awaiting your response",
-      icon: MessageSquare,
-    },
-    {
-      title: "Office Hours",
-      value: "2:00-5:00 PM",
-      description: "Today's availability",
-      icon: Clock,
-    },
-  ]
 
   // Check if user exists in database when component mounts
   useEffect(() => {
@@ -165,16 +131,23 @@ export default function DashboardPage() {
               
             if (studentData) {
               setUserName(studentData.name);
+              
+              // Fetch student-specific data
+              fetchStudentData(email);
             }
           } else if (data.role === 'counsellor') {
             const { data: counsellorData } = await supabase
               .from('counsellor')
-              .select('name')
+              .select('name, office_hours')
               .eq('email', email)
               .single();
               
             if (counsellorData) {
               setUserName(counsellorData.name);
+              setOfficeHours(counsellorData.office_hours || '');
+              
+              // Fetch counsellor-specific data
+              fetchCounsellorData(email);
             }
           }
         }
@@ -188,6 +161,155 @@ export default function DashboardPage() {
     
     checkUserExists();
   }, [user]);
+  
+  // Fetch data for student dashboard
+  const fetchStudentData = async (email: string) => {
+    try {
+      // Fetch upcoming appointments for the student
+      const today = new Date();
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from('appointment')
+        .select('*, counsellor:counsellor_email(name)')
+        .eq('student_email', email)
+        .eq('status', 'confirmed')
+        .gte('start_time', today.toISOString())
+        .order('start_time', { ascending: true })
+        .limit(5);
+      
+      if (appointmentsError) {
+        console.error("Error fetching appointments:", appointmentsError);
+      } else {
+        setAppointments(appointmentsData as Appointment[]);
+        setUpcomingAppointments(appointmentsData as Appointment[]);
+      }
+      
+      // Fetch forum activity
+      const { data: discussionsData, error: discussionsError } = await supabase
+        .from('discussion')
+        .select('*')
+        .eq('author_email', email);
+      
+      if (discussionsError) {
+        console.error("Error fetching discussions:", discussionsError);
+      } else {
+        setDiscussions(discussionsData as Discussion[]);
+      }
+      
+      // Fetch replies to student's discussions
+      let totalNewReplies = 0;
+      if (discussionsData && discussionsData.length > 0) {
+        const discussionIds = discussionsData.map((d: Discussion) => d.discussion_id);
+        
+        const { data: repliesData, error: repliesError } = await supabase
+          .from('discussion_reply')
+          .select('*')
+          .in('discussion_id', discussionIds)
+          .neq('author_email', email); // Exclude student's own replies
+        
+        if (repliesError) {
+          console.error("Error fetching replies:", repliesError);
+        } else {
+          setDiscussionReplies(repliesData as DiscussionReply[]);
+          totalNewReplies = repliesData?.length || 0;
+        }
+      }
+      
+      // Fetch applications
+      const { data: applicationsData, error: applicationsError } = await supabase
+        .from('application')
+        .select('*')
+        .eq('student_email', email);
+      
+      if (applicationsError) {
+        console.error("Error fetching applications:", applicationsError);
+      } else {
+        setApplications(applicationsData as Application[]);
+      }
+      
+      // Fetch new resources (last 7 days)
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      
+      const { data: resourcesData, error: resourcesError } = await supabase
+        .from('resource')
+        .select('*')
+        .eq('is_private', false)
+        .gte('created_at', oneWeekAgo.toISOString());
+      
+      if (resourcesError) {
+        console.error("Error fetching resources:", resourcesError);
+      } else {
+        setResources(resourcesData as Resource[]);
+        setNewResourcesCount(resourcesData?.length || 0);
+      }
+      
+    } catch (error) {
+      console.error("Error fetching student data:", error);
+    }
+  };
+  
+  // Fetch data for counsellor dashboard
+  const fetchCounsellorData = async (email: string) => {
+    try {
+      // Fetch today's appointments
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      today.setHours(0, 0, 0, 0);
+      tomorrow.setHours(0, 0, 0, 0);
+      
+      const { data: todaysAppointmentsData, error: appointmentsError } = await supabase
+        .from('appointment')
+        .select('*, student:student_email(name)')
+        .eq('counsellor_email', email)
+        .eq('status', 'confirmed')
+        .gte('start_time', today.toISOString())
+        .lt('start_time', tomorrow.toISOString())
+        .order('start_time', { ascending: true });
+      
+      if (appointmentsError) {
+        console.error("Error fetching today's appointments:", appointmentsError);
+      } else {
+        setTodaysAppointments(todaysAppointmentsData as Appointment[]);
+      }
+      
+      // Fetch appointment requests (status: 'requested')
+      const { data: requestedAppointmentsData, error: requestsError } = await supabase
+        .from('appointment')
+        .select('count')
+        .eq('counsellor_email', email)
+        .eq('status', 'requested');
+      
+      if (requestsError) {
+        console.error("Error fetching appointment requests:", requestsError);
+      } else {
+        const pendingCount = Number(requestedAppointmentsData[0]?.count) || 0;
+        setStudentRequests(pendingCount);
+        setPendingApprovals(pendingCount);
+      }
+
+      // Ensure pendingCount is defined
+      const pendingCount = studentRequests;
+
+      // Fetch forum questions with no replies
+      const { data: unansweredPostsData, error: forumError } = await supabase
+        .from('discussion')
+        .select('discussion_id')
+        .not('discussion_id', 'in', supabase
+          .from('discussion_reply')
+          .select('discussion_id')
+        );
+      
+      if (forumError) {
+        console.error("Error fetching unanswered forum questions:", forumError);
+      } else {
+        const unansweredCount = unansweredPostsData?.length || 0;
+      }
+    } catch (error) {
+      console.error("Error fetching counsellor data:", error);
+    }
+  };
 
   // Handle user role selection
   const handleUserFormSubmit = async () => {
@@ -518,9 +640,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Choose which stats to display based on user role
-  const stats = userRole === 'student' ? studentStats : counsellorStats;
-
   // Main dashboard content (only shown after onboarding is complete)
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -531,32 +650,6 @@ export default function DashboardPage() {
         className="max-w-7xl mx-auto"
       >
         <h1 className="text-4xl font-bold mb-8">Welcome back, {userName}</h1>
-        
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          {stats.map((stat, index) => (
-            <motion.div
-              key={stat.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
-            >
-              <Card className="hover:shadow-lg transition-shadow duration-200">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {stat.title}
-                  </CardTitle>
-                  <stat.icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {stat.description}
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
         
         {/* Student-specific content */}
         {userRole === 'student' && (
@@ -570,18 +663,28 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="p-3 border rounded-lg">
-                    <div className="font-medium">Career Guidance</div>
-                    <div className="text-sm text-muted-foreground mt-1">Tomorrow, 2:00 PM - 3:00 PM</div>
-                    <div className="text-sm">Counsellor: Dr. Sarah Johnson</div>
-                  </div>
-                  <div className="p-3 border rounded-lg">
-                    <div className="font-medium">Application Review</div>
-                    <div className="text-sm text-muted-foreground mt-1">April 25, 10:00 AM - 11:00 AM</div>
-                    <div className="text-sm">Counsellor: Mr. Robert Chen</div>
-                  </div>
+                  {upcomingAppointments.length > 0 ? (
+                    upcomingAppointments.slice(0, 3).map((appointment) => (
+                      <div key={appointment.appointment_id} className="p-3 border rounded-lg">
+                        <div className="font-medium">{appointment.title}</div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {format(parseISO(appointment.start_time), 'MMMM d, h:mm a')} - {' '}
+                          {format(parseISO(appointment.end_time), 'h:mm a')}
+                        </div>
+                        <div className="text-sm">
+                          Counsellor: {(appointment as any).counsellor?.name || 'Unknown'}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground">
+                      No upcoming appointments
+                    </div>
+                  )}
                 </div>
-                <Button className="w-full mt-4" variant="outline">Schedule New Appointment</Button>
+                <Button className="w-full mt-4" variant="outline" asChild>
+                  <a href="/appointments">Schedule New Appointment</a>
+                </Button>
               </CardContent>
             </Card>
             
@@ -594,35 +697,76 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">College Applications</span>
-                      <span className="text-sm font-medium">40%</span>
+                  {applications.length > 0 ? (
+                    <>
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">College Applications</span>
+                          <span className="text-sm font-medium">
+                            {Math.round((applications.filter(a => 
+                              ['submitted', 'interview', 'accepted', 'rejected', 'waitlisted', 'deferred', 'enrolled']
+                              .includes(a.application_status)).length / Math.max(applications.length, 1)) * 100)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ 
+                              width: `${Math.round((applications.filter(a => 
+                                ['submitted', 'interview', 'accepted', 'rejected', 'waitlisted', 'deferred', 'enrolled']
+                                .includes(a.application_status)).length / Math.max(applications.length, 1)) * 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">Applications in Progress</span>
+                          <span className="text-sm font-medium">
+                            {Math.round((applications.filter(a => 
+                              ['planning', 'in_progress'].includes(a.application_status)).length / Math.max(applications.length, 1)) * 100)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ 
+                              width: `${Math.round((applications.filter(a => 
+                                ['planning', 'in_progress'].includes(a.application_status)).length / Math.max(applications.length, 1)) * 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">Acceptances</span>
+                          <span className="text-sm font-medium">
+                            {Math.round((applications.filter(a => 
+                              ['accepted', 'enrolled'].includes(a.application_status)).length / Math.max(applications.length, 1)) * 100)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ 
+                              width: `${Math.round((applications.filter(a => 
+                                ['accepted', 'enrolled'].includes(a.application_status)).length / Math.max(applications.length, 1)) * 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground">
+                      No applications yet
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: "40%" }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">Personal Essay</span>
-                      <span className="text-sm font-medium">75%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: "75%" }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">Scholarship Applications</span>
-                      <span className="text-sm font-medium">20%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: "20%" }}></div>
-                    </div>
-                  </div>
+                  )}
                 </div>
-                <Button className="w-full mt-4" variant="outline">View All Tasks</Button>
+                <Button className="w-full mt-4" variant="outline" asChild>
+                  <a href="/profile">Manage Applications</a>
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -640,20 +784,25 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="p-3 border rounded-lg">
-                    <div className="font-medium">John Doe</div>
-                    <div className="text-sm text-muted-foreground mt-1">2:00 PM - 3:00 PM • Career Guidance</div>
-                  </div>
-                  <div className="p-3 border rounded-lg">
-                    <div className="font-medium">Emma Smith</div>
-                    <div className="text-sm text-muted-foreground mt-1">3:15 PM - 4:15 PM • College Applications</div>
-                  </div>
-                  <div className="p-3 border rounded-lg">
-                    <div className="font-medium">Michael Johnson</div>
-                    <div className="text-sm text-muted-foreground mt-1">4:30 PM - 5:30 PM • Scholarship Review</div>
-                  </div>
+                  {todaysAppointments.length > 0 ? (
+                    todaysAppointments.map((appointment) => (
+                      <div key={appointment.appointment_id} className="p-3 border rounded-lg">
+                        <div className="font-medium">{(appointment as any).student?.name || 'Student'}</div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {format(parseISO(appointment.start_time), 'h:mm a')} - {' '}
+                          {format(parseISO(appointment.end_time), 'h:mm a')} • {appointment.title}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground">
+                      No appointments scheduled for today
+                    </div>
+                  )}
                 </div>
-                <Button className="w-full mt-4" variant="outline">View Full Schedule</Button>
+                <Button className="w-full mt-4" variant="outline" asChild>
+                  <a href="/appointments">View Full Schedule</a>
+                </Button>
               </CardContent>
             </Card>
             
@@ -665,30 +814,21 @@ export default function DashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="p-3 border rounded-lg flex justify-between items-center">
-                    <div>
-                      <div className="font-medium">Alex Wilson</div>
-                      <div className="text-sm text-muted-foreground">Essay Review Request</div>
-                    </div>
-                    <Button size="sm">Respond</Button>
+                {studentRequests > 0 ? (
+                  <div className="text-center py-6">
+                    <p className="text-2xl font-bold mb-2">{studentRequests}</p>
+                    <p className="text-muted-foreground">
+                      pending student {studentRequests === 1 ? 'request' : 'requests'} to review
+                    </p>
+                    <Button className="mt-4" asChild>
+                      <a href="/appointments">View Requests</a>
+                    </Button>
                   </div>
-                  <div className="p-3 border rounded-lg flex justify-between items-center">
-                    <div>
-                      <div className="font-medium">Sophia Garcia</div>
-                      <div className="text-sm text-muted-foreground">Interview Preparation</div>
-                    </div>
-                    <Button size="sm">Respond</Button>
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground">
+                    No pending requests
                   </div>
-                  <div className="p-3 border rounded-lg flex justify-between items-center">
-                    <div>
-                      <div className="font-medium">Noah Thompson</div>
-                      <div className="text-sm text-muted-foreground">Application Question</div>
-                    </div>
-                    <Button size="sm">Respond</Button>
-                  </div>
-                </div>
-                <Button className="w-full mt-4" variant="outline">View All Requests</Button>
+                )}
               </CardContent>
             </Card>
           </div>

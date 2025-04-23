@@ -1,13 +1,11 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/auth/register/page": "app/auth/register/page.js",
-  "/auth/login/page": "app/auth/login/page.js",
-  "/page": "app/page.js",
-  "/counsellors/page": "app/counsellors/page.js",
-  "/profile/page": "app/profile/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
   "/appointments/page": "app/appointments/page.js",
+  "/auth/login/page": "app/auth/login/page.js",
+  "/counsellors/page": "app/counsellors/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/forum/[slug]/page": "app/forum/[slug]/page.js",
   "/forum/page": "app/forum/page.js",
-  "/resources/page": "app/resources/page.js",
-  "/forum/[slug]/page": "app/forum/[slug]/page.js"
+  "/page": "app/page.js",
+  "/profile/page": "app/profile/page.js",
+  "/resources/page": "app/resources/page.js"
 }

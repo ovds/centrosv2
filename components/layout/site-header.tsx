@@ -60,13 +60,6 @@ export function SiteHeader() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <div className="hidden sm:flex relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="Search..."
-                    className="pl-8 w-[200px] lg:w-[250px]"
-                />
-              </div>
               <ModeToggle />
               <UserNav />
             </div>

@@ -26,20 +26,14 @@ export async function generateStaticParams() {
   }
 }
 
-interface PageProps {
-  params: {
-    slug: string
-  },
-  searchParams?: { [key: string]: string | string[] | undefined }
-}
-
-export default async function DiscussionDetailPage({ params }: PageProps) {
+export default async function DiscussionDetailPage({ params }: {params: Promise<{ slug: string }>}) {
   let discussion: Discussion | undefined
   let replies: DiscussionReply[] = []
+  const { slug } = await params;
   
   try {
     // Fetch discussion and replies
-    const data = await getDiscussionWithReplies(params.slug)
+    const data = await getDiscussionWithReplies(slug)
     discussion = data.discussion
     replies = data.replies
   } catch (error) {

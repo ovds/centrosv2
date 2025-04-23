@@ -48,11 +48,11 @@ export default function ResourcesPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [selectedFilters, setSelectedFilters] = useState<{
     types: string[],
-    isPrivate: boolean | null,
+    isPrivate: boolean,
     dateRange: "all" | "today" | "week" | "month" | "year"
   }>({
     types: [],
-    isPrivate: null,
+    isPrivate: false,
     dateRange: "all"
   })
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false)
@@ -246,7 +246,7 @@ export default function ResourcesPage() {
   const resetFilters = () => {
     setSelectedFilters({
       types: [],
-      isPrivate: null,
+      isPrivate: false,
       dateRange: "all"
     })
   }
@@ -509,7 +509,7 @@ export default function ResourcesPage() {
                             ? "private" 
                             : "public"}
                         onValueChange={(value) => {
-                          let isPrivate = null
+                          let isPrivate = false;
                           if (value === "private") isPrivate = true
                           if (value === "public") isPrivate = false
                           setSelectedFilters(prev => ({ ...prev, isPrivate }))

@@ -19,7 +19,9 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
-import { v4 as uuidv4 } from "uuid" 
+import { Loader2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { createDiscussion } from "@/lib/db"
 import { Discussion, ForumCategory, UserRole } from "@/types/types"
 
 // Form interface for creating a new discussion
@@ -29,31 +31,28 @@ interface NewDiscussionForm {
   content: string
 }
 
-// Extension of the Discussion interface with UI fields
-interface DiscussionWithAuthor extends Discussion {
-  authorName: string
-  formattedDate: string
-  replyCount: number
-  likeCount: number
-  preview: string
-}
-
 interface CreatePostDialogProps {
   isOpen: boolean
   onClose: () => void
-  onCreatePost: (post: DiscussionWithAuthor) => void
+  onCreatePost: (post: Discussion) => void
   categories: ForumCategory[]
+  userEmail: string
+  userRole: UserRole
 }
 
 export function CreatePostDialog({ 
   isOpen, 
   onClose, 
   onCreatePost,
-  categories 
+  categories,
+  userEmail,
+  userRole
 }: CreatePostDialogProps) {
+  const { toast } = useToast()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [form, setForm] = useState<NewDiscussionForm>({
     title: "",
-    categoryId: categories.length > 0 ? categories[1].category_id : "", // Skip "All" category
+    categoryId: categories.length > 1 ? categories[1].forum_category_name : "", // Skip "All" category
     content: ""
   })
 
@@ -68,43 +67,63 @@ export function CreatePostDialog({
     setForm((prev) => ({ ...prev, categoryId: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!form.title || !form.content) return
-
-    const now = new Date().toISOString()
-    
-    // Create a new discussion object
-    const newDiscussion: DiscussionWithAuthor = {
-      discussion_id: uuidv4(),
-      title: form.title,
-      content: form.content,
-      author_id: "current-user", // In a real app, this would come from auth
-      author_type: "student" as UserRole, // In a real app, this would come from auth
-      category_id: form.categoryId,
-      is_pinned: false,
-      is_closed: false,
-      is_anonymous: false,
-      view_count: 0,
-      created_at: now,
-      updated_at: now,
-      // UI-specific fields
-      authorName: "Current User",
-      formattedDate: "Just now",
-      replyCount: 0,
-      likeCount: 0,
-      preview: form.content.substring(0, 100) + (form.content.length > 100 ? "..." : "")
+    if (!form.title || !form.content || !form.categoryId) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      })
+      return
     }
-    
-    onCreatePost(newDiscussion)
-    
-    // Reset form
-    setForm({
-      title: "",
-      categoryId: categories.length > 0 ? categories[1].category_id : "",
-      content: ""
-    })
+
+    if (!userEmail) {
+      toast({
+        title: "Authentication required",
+        description: "You must be logged in to create a post",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      
+      // Create discussion in the database
+      const newDiscussion = await createDiscussion({
+        title: form.title,
+        content: form.content,
+        author_email: userEmail,
+        author_type: userRole,
+        forum_category_name: form.categoryId,
+        is_pinned: false,
+        is_closed: false
+      })
+      
+      // Pass new discussion to parent component
+      onCreatePost(newDiscussion)
+      
+      // Reset form
+      setForm({
+        title: "",
+        categoryId: categories.length > 1 ? categories[1].forum_category_name : "",
+        content: ""
+      })
+      
+      // Close dialog
+      onClose()
+    } catch (error) {
+      console.error("Error creating discussion:", error)
+      toast({
+        title: "Error",
+        description: "Failed to create discussion. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -129,6 +148,7 @@ export function CreatePostDialog({
               onChange={handleChange}
               placeholder="Give your discussion a descriptive title"
               required
+              disabled={isSubmitting}
             />
           </div>
           
@@ -139,19 +159,20 @@ export function CreatePostDialog({
             <Select 
               value={form.categoryId} 
               onValueChange={handleCategoryChange}
+              disabled={isSubmitting}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
                 {categories
-                  .filter(category => category.category_id !== "all") // Exclude "All" from selection options
+                  .filter(category => category.forum_category_name !== "all") // Exclude "All" from selection options
                   .map(category => (
                     <SelectItem 
-                      key={category.category_id} 
-                      value={category.category_id}
+                      key={category.forum_category_name} 
+                      value={category.forum_category_name}
                     >
-                      {category.name}
+                      {category.forum_category_name}
                     </SelectItem>
                   ))
                 }
@@ -171,14 +192,32 @@ export function CreatePostDialog({
               placeholder="Share your thoughts, questions, or ideas..."
               className="min-h-[200px]"
               required
+              disabled={isSubmitting}
             />
           </div>
           
           <DialogFooter className="mt-6">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button type="submit">Post Discussion</Button>
+            <Button 
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Post Discussion"
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

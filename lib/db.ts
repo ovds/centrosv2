@@ -121,14 +121,34 @@ export async function updateAppointmentStatus(
 export async function fetchForumCategories(): Promise<ForumCategory[]> {
   const { data, error } = await supabase.from('forum_category').select('*')
   if (error) throw error
-  return data!
+  
+  // Add "All" category for UI filtering
+  const allCategory = {
+    category_id: "all",
+    name: "All Topics",
+    description: "All forum discussions",
+    icon: null,
+    display_order: 0,
+    is_private: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  
+  return [allCategory, ...data];
 }
 
-export async function fetchDiscussions(forum_category_name: string): Promise<Discussion[]> {
-  const { data, error } = await supabase
-    .from('discussion')
-    .select('*')
-    .eq('forum_category_name', forum_category_name)
+export async function fetchDiscussions(category_id?: string): Promise<Discussion[]> {
+  let query = supabase.from('discussion').select('*')
+  
+  // If category is specified and not 'all', filter by category
+  if (category_id && category_id !== 'all') {
+    query = query.eq('forum_category_name', category_id)
+  }
+  
+  // Order by creation date (newest first) and pinned posts
+  query = query.order('is_pinned', { ascending: false }).order('created_at', { ascending: false })
+  
+  const { data, error } = await query
   if (error) throw error
   return data!
 }
@@ -138,6 +158,8 @@ export async function fetchReplies(discussion_id: string): Promise<DiscussionRep
     .from('discussion_reply')
     .select('*')
     .eq('discussion_id', discussion_id)
+    .order('created_at', { ascending: true }) // Order by creation date
+  
   if (error) throw error
   return data!
 }
@@ -198,4 +220,137 @@ export async function deleteAppointment(appointment_id: string): Promise<void> {
     .eq('appointment_id', appointment_id)
   
   if (error) throw error
+}
+
+// Forum functions for creating, updating, and deleting content
+export async function createDiscussion(discussion: Partial<Discussion>): Promise<Discussion> {
+  const discussion_id = generateUUID();
+  
+  const { data, error } = await supabase
+    .from('discussion')
+    .insert({
+      discussion_id,
+      ...discussion,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      view_count: 0
+    })
+    .select()
+    .single()
+  
+  if (error) throw error
+  return data
+}
+
+export async function updateDiscussion(discussion_id: string, updates: Partial<Discussion>): Promise<void> {
+  const { error } = await supabase
+    .from('discussion')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('discussion_id', discussion_id)
+  
+  if (error) throw error
+}
+
+export async function deleteDiscussion(discussion_id: string): Promise<void> {
+  // First delete all replies to this discussion
+  const { error: replyError } = await supabase
+    .from('discussion_reply')
+    .delete()
+    .eq('discussion_id', discussion_id)
+  
+  if (replyError) throw replyError
+  
+  // Then delete the discussion itself
+  const { error } = await supabase
+    .from('discussion')
+    .delete()
+    .eq('discussion_id', discussion_id)
+  
+  if (error) throw error
+}
+
+export async function createReply(reply: Partial<DiscussionReply>): Promise<DiscussionReply> {
+  const reply_id = generateUUID();
+  
+  const { data, error } = await supabase
+    .from('discussion_reply')
+    .insert({
+      reply_id,
+      ...reply,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .select()
+    .single()
+  
+  if (error) throw error
+  return data
+}
+
+export async function updateReply(reply_id: string, updates: Partial<DiscussionReply>): Promise<void> {
+  const { error } = await supabase
+    .from('discussion_reply')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('reply_id', reply_id)
+  
+  if (error) throw error
+}
+
+export async function deleteReply(reply_id: string): Promise<void> {
+  const { error } = await supabase
+    .from('discussion_reply')
+    .delete()
+    .eq('reply_id', reply_id)
+  
+  if (error) throw error
+}
+
+export async function incrementViewCount(discussion_id: string): Promise<void> {
+  const { error } = await supabase.rpc('increment_view_count', { discussion_id })
+  
+  if (error) {
+    // Fall back to direct update if the RPC function is not available
+    const { data } = await supabase
+      .from('discussion')
+      .select('view_count')
+      .eq('discussion_id', discussion_id)
+      .single()
+    
+    if (data) {
+      const { error: updateError } = await supabase
+        .from('discussion')
+        .update({ view_count: data.view_count + 1 })
+        .eq('discussion_id', discussion_id)
+      
+      if (updateError) throw updateError
+    }
+  }
+}
+
+export async function getDiscussionWithReplies(discussion_id: string): Promise<{ discussion: Discussion, replies: DiscussionReply[] }> {
+  // Fetch the discussion
+  const { data: discussion, error: discussionError } = await supabase
+    .from('discussion')
+    .select('*, forum_category:forum_category_name(*)')
+    .eq('discussion_id', discussion_id)
+    .single()
+  
+  if (discussionError) throw discussionError
+  
+  // Fetch the replies
+  const { data: replies, error: repliesError } = await supabase
+    .from('discussion_reply')
+    .select('*')
+    .eq('discussion_id', discussion_id)
+    .order('created_at', { ascending: true })
+  
+  if (repliesError) throw repliesError
+  
+  return { discussion, replies: replies || [] }
 }

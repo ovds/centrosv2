@@ -2,212 +2,241 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MessageSquare, Plus, Search, ThumbsUp, MessageCircle, Calendar } from "lucide-react"
+import { MessageSquare, Plus, Search, ThumbsUp, MessageCircle, Calendar, Loader2, Trash2, Pin, EyeIcon } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { Discussion, ForumCategory } from "@/types/types"
 import { CreatePostDialog } from "@/app/forum/components/create-post-dialog"
-import { fetchForumCategories } from "@/lib/db"
-
-// Mock data until connected to backend
-const mockCategories: ForumCategory[] = [
-  {
-    category_id: "all",
-    name: "All Topics",
-    description: "All forum discussions",
-    icon: null,
-    display_order: 0,
-    is_private: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  },
-  {
-    category_id: "academic",
-    name: "Academic",
-    description: "Academic discussions",
-    icon: null,
-    display_order: 1,
-    is_private: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  },
-  {
-    category_id: "career",
-    name: "Career",
-    description: "Career related discussions",
-    icon: null,
-    display_order: 2,
-    is_private: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  },
-  {
-    category_id: "study-groups",
-    name: "Study Groups",
-    description: "Study group discussions",
-    icon: null,
-    display_order: 3,
-    is_private: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }
-]
-
-// Mock discussions data
-const mockDiscussions: Discussion[] = [
-  {
-    discussion_id: "1",
-    title: "Tips for University Applications",
-    content: "Hi everyone, I'm preparing my university applications and would like to share some tips I've learned along the way. First, start early! Applications can take much longer than you expect. Second, get multiple people to review your personal statement. Third, research each university thoroughly to tailor your application. Fourth, don't forget to highlight extracurricular activities that show your character. Hope this helps!",
-    author_id: "user1",
-    author_type: "student",
-    category_id: "academic",
-    is_pinned: false,
-    is_closed: false,
-    is_anonymous: false,
-    view_count: 120,
-    created_at: "2025-04-19T14:00:00Z",
-    updated_at: "2025-04-19T14:00:00Z"
-  },
-  {
-    discussion_id: "2",
-    title: "Study Group for IB Physics",
-    content: "Looking to form a study group for IB Physics. We can meet twice a week to review concepts, solve problems together, and prepare for the exams. I find mechanics and thermodynamics particularly challenging, so would love to collaborate with others. Let me know if you're interested!",
-    author_id: "user2",
-    author_type: "student",
-    category_id: "study-groups",
-    is_pinned: false,
-    is_closed: false,
-    is_anonymous: false,
-    view_count: 75,
-    created_at: "2025-04-16T09:00:00Z",
-    updated_at: "2025-04-16T09:00:00Z"
-  },
-  {
-    discussion_id: "3",
-    title: "Career Fair Experience Sharing",
-    content: "Just attended the annual career fair and wanted to share my experience. The event was well-organized with representatives from over 50 companies across different industries. I found that companies were particularly interested in students who had done relevant projects or internships. I managed to schedule three interviews for summer internships! Make sure to bring plenty of resumes and practice your elevator pitch beforehand.",
-    author_id: "user3",
-    author_type: "student",
-    category_id: "career",
-    is_pinned: true,
-    is_closed: false,
-    is_anonymous: false,
-    view_count: 210,
-    created_at: "2025-04-20T11:00:00Z",
-    updated_at: "2025-04-20T11:00:00Z"
-  }
-]
+import { 
+  fetchForumCategories, 
+  fetchDiscussions, 
+  fetchReplies,
+  deleteDiscussion 
+} from "@/lib/db"
+import { useForumAuth } from "@/hooks/use-forum-auth"
+import { createClient } from '@supabase/supabase-js'
 
 // Helper interfaces for UI
 interface DiscussionWithAuthor extends Discussion {
   authorName: string;
   formattedDate: string;
   replyCount: number;
-  likeCount: number;
   preview: string;
 }
 
 export default function ForumPage() {
+  const { toast } = useToast()
+  const { 
+    isLoading: authLoading, 
+    isAuthenticated, 
+    userRole,
+    userEmail,
+    userName,
+    canModerate,
+    canDelete
+  } = useForumAuth()
+  
   const [discussions, setDiscussions] = useState<DiscussionWithAuthor[]>([])
   const [categories, setCategories] = useState<ForumCategory[]>([])
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("all")
   const [isLoading, setIsLoading] = useState(true)
+  const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({})
 
   // Fetch categories and discussions
   useEffect(() => {
-    // Fetch categories from db.ts
+    async function fetchForumData() {
+      try {
+        // Fetch categories
+        const categoriesData = await fetchForumCategories()
+        setCategories(categoriesData)
+        
+        // Fetch all discussions initially
+        const discussionsData = await fetchDiscussions()
+        
+        // Get reply counts for each discussion
+        const discussionsWithDetails = await Promise.all(
+          discussionsData.map(async (discussion) => {
+            const replies = await fetchReplies(discussion.discussion_id)
+            
+            // Get author name - In a real app, you would fetch this from a users table
+            let authorName = "Anonymous"
+            if (discussion.author_email) {
+              try {
+                const email = discussion.author_email
+                // Fetch author details based on email
+                const supabase = createClient(
+                  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+                  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+                )
+                const { data } = await supabase
+                  .from(discussion.author_type === 'student' ? 'student' : 'counsellor')
+                  .select('name')
+                  .eq('email', email)
+                  .single()
+                
+                if (data) {
+                  authorName = data.name
+                } else {
+                  // Fall back to email display if name not found
+                  authorName = email.split('@')[0]
+                }
+              } catch (error) {
+                console.error('Error fetching author details:', error)
+              }
+            }
+            
+            return {
+              ...discussion,
+              authorName,
+              formattedDate: formatDate(discussion.created_at),
+              replyCount: replies.length,
+              preview: discussion.content.substring(0, 160) + (discussion.content.length > 160 ? "..." : "")
+            }
+          })
+        )
+        
+        setDiscussions(discussionsWithDetails)
+        setIsLoading(false)
+      } catch (error) {
+        console.error("Error fetching forum data:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load forum data. Please try again.",
+          variant: "destructive"
+        })
+        setIsLoading(false)
+      }
+    }
     
-    fetchForumCategories()
-      .then(data => {
-        setCategories([mockCategories[0], ...data]) // Add "All Topics" category
-        setActiveTab(mockCategories[0].category_id) // Set default active tab to "All Topics"
-        console.log("Categories fetched:", data)  
-      })
-      .catch(error => {
-        console.error("Error fetching categories:", error)
-      });
-    
-    // Process discussions to add UI-specific properties
-    const processedDiscussions = mockDiscussions.map(discussion => ({
-      ...discussion,
-      authorName: getAuthorName(discussion.author_id, discussion.author_type),
-      formattedDate: formatDate(discussion.created_at),
-      replyCount: Math.floor(Math.random() * 10), // Mock data
-      likeCount: Math.floor(Math.random() * 50), // Mock data
-      preview: discussion.content.substring(0, 100) + (discussion.content.length > 100 ? "..." : "")
-    }));
-    
-    setDiscussions(processedDiscussions);
-    setIsLoading(false);
-  }, []);
-
-  // Helper function to get author name (would fetch from user data in real app)
-  const getAuthorName = (authorId: string, authorType: string) => {
-    const names = {
-      "user1": "Sarah L.",
-      "user2": "David W.",
-      "user3": "Rachel T."
-    };
-    return names[authorId as keyof typeof names] || "Anonymous User";
-  };
+    fetchForumData()
+  }, [toast])
 
   // Helper function to format date
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    // Parse the date from the input string
+    const date = new Date(dateString)
     
-    if (diffHours < 1) return 'Just now';
-    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-    if (diffHours < 48) return 'Yesterday';
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
+    // Format the date in Singapore timezone
+    const options: Intl.DateTimeFormatOptions = { 
+      timeZone: 'Asia/Singapore',
+      hour: '2-digit', 
+      minute: '2-digit',
+      day: 'numeric',
+      month: 'short'
+    }
+    
+    const sgtDateStr = date.toLocaleString('en-US', options)
+    const sgtDate = new Date(date.getTime() + (8 * 60 * 60 * 1000)) // Add 8 hours for display comparison
+    
+    // For relative time calculation
+    const now = new Date()
+    const sgtNow = new Date(now.getTime()) // Add 8 hours for comparison
+    
+    const diffMs = sgtNow.getTime() - sgtDate.getTime()
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    
+    if (diffHours < 1) return 'Just now'
+    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+    if (diffHours < 48) return 'Yesterday'
+    
+    return sgtDateStr
+  }
 
   const filteredDiscussions = discussions.filter(discussion => {
     // Filter by search query
     const matchesSearch = searchQuery === "" || 
       discussion.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      discussion.content.toLowerCase().includes(searchQuery.toLowerCase());
+      discussion.content.toLowerCase().includes(searchQuery.toLowerCase())
     
     // Filter by category
     const matchesCategory = activeTab === "all" || 
-      discussion.category_id === activeTab;
+      discussion.forum_category_name === activeTab
     
-    return matchesSearch && matchesCategory;
-  });
+    return matchesSearch && matchesCategory
+  })
 
-  const handleNewDiscussion = (newDiscussion: DiscussionWithAuthor) => {
-    setDiscussions([newDiscussion, ...discussions]);
-    setIsCreateDialogOpen(false);
-  };
+  const handleNewDiscussion = (newDiscussion: Discussion) => {
+    // Create a full DiscussionWithAuthor object
+    const discussionWithDetails: DiscussionWithAuthor = {
+      ...newDiscussion,
+      authorName: userName || "You",
+      formattedDate: "Just now",
+      replyCount: 0,
+      preview: newDiscussion.content.substring(0, 160) + (newDiscussion.content.length > 160 ? "..." : "")
+    }
+    
+    setDiscussions([discussionWithDetails, ...discussions])
+    setIsCreateDialogOpen(false)
+    
+    toast({
+      title: "Discussion Created",
+      description: "Your discussion has been posted successfully.",
+    })
+  }
+
+  // Handle discussion deletion
+  const handleDeleteDiscussion = async (discussionId: string, e: React.MouseEvent) => {
+    e.preventDefault() // Prevent navigation to discussion detail page
+    e.stopPropagation() // Stop event bubbling
+    
+    if (confirm("Are you sure you want to delete this discussion? This action cannot be undone.")) {
+      try {
+        setIsDeleting(prev => ({ ...prev, [discussionId]: true }))
+        
+        await deleteDiscussion(discussionId)
+        
+        setDiscussions(discussions.filter(d => d.discussion_id !== discussionId))
+        
+        toast({
+          title: "Discussion Deleted",
+          description: "The discussion has been deleted successfully.",
+        })
+      } catch (error) {
+        console.error("Error deleting discussion:", error)
+        toast({
+          title: "Error",
+          description: "Failed to delete discussion. Please try again.",
+          variant: "destructive"
+        })
+      } finally {
+        setIsDeleting(prev => ({ ...prev, [discussionId]: false }))
+      }
+    }
+  }
 
   // Get category name from id
   const getCategoryName = (categoryId: string) => {
-    const category = categories.find(c => c.category_id === categoryId);
-    return category ? category.name : "Uncategorized";
-  };
+    const category = categories.find(c => c.forum_category_name === categoryId)
+    return category ? category.forum_category_name : "Uncategorized"
+  }
 
   // Get icon for category
   const getCategoryIcon = (categoryId: string) => {
     switch(categoryId) {
       case 'academic':
-        return <Calendar className="h-4 w-4" />;
+        return <Calendar className="h-4 w-4" />
       case 'career':
-        return <MessageCircle className="h-4 w-4" />;
+        return <MessageCircle className="h-4 w-4" />
       default:
-        return <MessageSquare className="h-4 w-4" />;
+        return <MessageSquare className="h-4 w-4" />
     }
-  };
+  }
 
-  if (isLoading) {
-    return <div className="flex justify-center items-center h-[50vh]">Loading discussions...</div>;
+  if (isLoading || authLoading) {
+    return (
+      <div className="flex justify-center items-center h-[50vh]">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+          <p className="text-muted-foreground">Loading forum content...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -245,10 +274,10 @@ export default function ForumPage() {
           className="space-y-6"
           onValueChange={setActiveTab}
         >
-          <TabsList>
+          <TabsList className="flex-wrap">
             {categories.map((category) => (
-              <TabsTrigger key={category.category_id} value={category.category_id}>
-                {category.name}
+              <TabsTrigger key={category.forum_category_name} value={category.forum_category_name}>
+                {category.forum_category_name}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -263,20 +292,25 @@ export default function ForumPage() {
                   transition={{ duration: 0.6, delay: index * 0.1 }}
                 >
                   <Link href={`/forum/${discussion.discussion_id}`}>
-                    <Card className="hover:shadow-lg transition-shadow duration-200">
+                    <Card className={`hover:shadow-lg transition-shadow duration-200 ${discussion.author_email === userEmail ? 'border-primary/40' : ''}`}>
                       <CardHeader>
                         <div className="flex items-center justify-between">
                           <div>
                             <CardTitle className="flex items-center">
-                              {discussion.is_pinned && <MessageSquare className="mr-2 h-5 w-5 text-primary" />}
+                              {discussion.is_pinned && <Pin className="mr-2 h-4 w-4 text-primary" />}
                               {discussion.title}
+                              {discussion.author_email === userEmail && (
+                                <span className="ml-2 text-xs bg-primary/10 rounded px-2 py-0.5 text-primary">
+                                  Your Post
+                                </span>
+                              )}
                             </CardTitle>
                             <CardDescription className="mt-1">
                               Posted by {discussion.authorName} • {discussion.formattedDate}
                             </CardDescription>
                           </div>
                           <span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
-                            {getCategoryName(discussion.category_id)}
+                            {getCategoryName(discussion.forum_category_name)}
                           </span>
                         </div>
                       </CardHeader>
@@ -288,15 +322,29 @@ export default function ForumPage() {
                             {discussion.replyCount} replies
                           </div>
                           <div className="flex items-center">
-                            <ThumbsUp className="mr-1 h-4 w-4" />
-                            {discussion.likeCount} likes
-                          </div>
-                          <div className="flex items-center">
-                            <Search className="mr-1 h-4 w-4" />
+                            <EyeIcon className="mr-1 h-4 w-4" />
                             {discussion.view_count} views
                           </div>
                         </div>
                       </CardContent>
+                      {canDelete(discussion.author_email) && (
+                        <CardFooter className="pt-0 flex justify-end">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="mt-2"
+                            onClick={(e) => handleDeleteDiscussion(discussion.discussion_id, e)}
+                            disabled={isDeleting[discussion.discussion_id]}
+                          >
+                            {isDeleting[discussion.discussion_id] ? (
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 mr-2" />
+                            )}
+                            Delete
+                          </Button>
+                        </CardFooter>
+                      )}
                     </Card>
                   </Link>
                 </motion.div>
@@ -315,6 +363,8 @@ export default function ForumPage() {
         onClose={() => setIsCreateDialogOpen(false)}
         onCreatePost={handleNewDiscussion}
         categories={categories}
+        userEmail={userEmail || ''}
+        userRole={userRole || 'student'}
       />
     </div>
   )

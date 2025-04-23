@@ -27,7 +27,23 @@ export default function RootLayout({
     children: React.ReactNode
 }) {
     return (
-        <ClerkProvider>
+        <ClerkProvider
+            appearance={{
+                elements: {
+                    rootBox: "w-full",
+                    card: "w-full shadow-none",
+                    formButtonPrimary: "bg-primary text-primary-foreground hover:bg-primary/90",
+                    formFieldInput: "border-input",
+                    footerActionLink: "text-primary hover:text-primary/90",
+                },
+                layout: {
+                    socialButtonsPlacement: "bottom",
+                    socialButtonsVariant: "iconButton",
+                    termsPageUrl: "https://www.nushigh.edu.sg/terms",
+                    privacyPageUrl: "https://www.nushigh.edu.sg/privacy",
+                },
+            }}
+        >
             <html lang="en" suppressHydrationWarning>
             <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
                 <ThemeProvider

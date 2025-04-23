@@ -129,7 +129,6 @@ export interface University {
   uni_name: string
   country: string
   region: string | null
-  website: string | null
   logo_url: string | null
   description: string | null
   acceptance_rate: number | null
@@ -137,6 +136,10 @@ export interface University {
   ranking: number | null
   notable_programs: string | null
   application_tips: string | null
+  best_ranked_subjects: string | null
+  found_year: number | null
+  website: string | null
+  address: string | null
   created_at: string
   updated_at: string
 }

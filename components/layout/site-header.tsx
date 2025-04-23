@@ -5,8 +5,7 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { Button } from "@/components/ui/button"
 import { UserNav } from "@/components/layout/user-nav"
 import { MainNav } from "@/components/layout/main-nav"
-import { Search, Menu } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { Menu } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -60,13 +59,6 @@ export function SiteHeader() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <div className="hidden sm:flex relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="Search..."
-                    className="pl-8 w-[200px] lg:w-[250px]"
-                />
-              </div>
               <ModeToggle />
               <UserNav />
             </div>

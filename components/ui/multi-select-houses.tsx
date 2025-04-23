@@ -73,8 +73,8 @@ export function MultiSelectHouses({
                   className="mr-1 mb-1"
                 >
                   {houseOptions.find(option => option.value === house)?.label || house}
-                  <button
-                    className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  <span
+                    className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         handleRemove(house)
@@ -85,9 +85,11 @@ export function MultiSelectHouses({
                       e.stopPropagation()
                     }}
                     onClick={() => handleRemove(house)}
+                    role="button"
+                    tabIndex={0}
                   >
                     <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                  </button>
+                  </span>
                 </Badge>
               ))}
             </div>

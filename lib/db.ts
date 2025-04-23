@@ -191,3 +191,64 @@ export async function deleteAppointment(appointment_id: string): Promise<void> {
   
   if (error) throw error
 }
+
+export async function createApplication(application: Partial<Application>): Promise<Application> {
+  // Generate UUID for application_id
+  const application_id = generateUUID();
+  
+  const { data, error } = await supabase
+    .from('application')
+    .insert({
+      application_id,
+      ...application,
+      created_at: application.created_at || new Date().toISOString(),
+      updated_at: application.updated_at || new Date().toISOString()
+    })
+    .select()
+    .single()
+  
+  if (error) throw error
+  return data
+}
+
+export async function updateApplication(
+  application_id: string,
+  updates: Partial<Application>
+): Promise<Application> {
+  const { data, error } = await supabase
+    .from('application')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('application_id', application_id)
+    .select()
+    .single()
+  
+  if (error) throw error
+  return data
+}
+
+export async function fetchAllApplications(): Promise<Application[]> {
+  const { data, error } = await supabase
+    .from('application')
+    .select('*')
+  if (error) throw error
+  return data!
+}
+
+// This function filters applications based on the application year
+export async function fetchApplicationsByYear(year: number): Promise<Application[]> {
+  // We'll filter based on created_at field to get applications from a specific year
+  const startDate = `${year}-01-01`
+  const endDate = `${year}-12-31`
+  
+  const { data, error } = await supabase
+    .from('application')
+    .select('*')
+    .gte('created_at', startDate)
+    .lte('created_at', endDate)
+  
+  if (error) throw error
+  return data!
+}

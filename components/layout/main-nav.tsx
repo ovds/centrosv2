@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { BookOpen, Calendar, Home, MessageSquare, Users } from "lucide-react"
+import { BookOpen, Calendar, Home, MessageSquare, Users, GraduationCap } from "lucide-react"
 
 export function MainNav() {
   const pathname = usePathname()
@@ -41,6 +41,12 @@ export function MainNav() {
       active: pathname === "/forum",
     },
     {
+      href: "/universities",
+      label: "Universities",
+      icon: GraduationCap,
+      active: pathname === "/universities",
+    },
+    {
       href: "/counsellors",
       label: "Counsellors",
       icon: Users,
@@ -49,7 +55,7 @@ export function MainNav() {
   ]
 
   return (
-      <nav className="flex items-center space-x-4 lg:space-x-6">
+      <nav className="flex items-center space-x-6 lg:space-x-8">
         {routes.map((route) => {
           if (!route.icon) {
             return (
@@ -71,8 +77,7 @@ export function MainNav() {
                       "flex items-center text-sm font-medium transition-colors hover:text-primary",
                       route.active ? "text-primary" : "text-muted-foreground",
                       "whitespace-nowrap"
-                  )}
-              >
+                  )}>
                 {route.icon && <route.icon className="mr-2 h-4 w-4" />}
                 {route.label}
               </Link>

@@ -1,11 +1,7 @@
 {
   "node": {
-    "7f2419110ffb503caadcf345033dc467cc94cc6c62": {
+    "7f5d246043d1c98ac71bd0f36c490945066f80a906": {
       "workers": {
-        "app/_not-found/page": {
-          "moduleId": "[project]/.next-internal/server/app/_not-found/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
-          "async": false
-        },
         "app/appointments/page": {
           "moduleId": "[project]/.next-internal/server/app/appointments/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
           "async": false
@@ -37,10 +33,13 @@
         "app/resources/page": {
           "moduleId": "[project]/.next-internal/server/app/resources/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
           "async": false
+        },
+        "app/universities/page": {
+          "moduleId": "[project]/.next-internal/server/app/universities/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
         }
       },
       "layer": {
-        "app/_not-found/page": "action-browser",
         "app/appointments/page": "action-browser",
         "app/auth/login/page": "action-browser",
         "app/auth/register/page": "action-browser",
@@ -48,15 +47,12 @@
         "app/dashboard/page": "action-browser",
         "app/page": "action-browser",
         "app/profile/page": "action-browser",
-        "app/resources/page": "action-browser"
+        "app/resources/page": "action-browser",
+        "app/universities/page": "action-browser"
       }
     },
-    "7f36c54a262afee66c54e691f748bded58aa6d4aa8": {
+    "7f6ec9eee7da02c141586eb78d917a48e61f813fbc": {
       "workers": {
-        "app/_not-found/page": {
-          "moduleId": "[project]/.next-internal/server/app/_not-found/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
-          "async": false
-        },
         "app/appointments/page": {
           "moduleId": "[project]/.next-internal/server/app/appointments/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
           "async": false
@@ -88,10 +84,13 @@
         "app/resources/page": {
           "moduleId": "[project]/.next-internal/server/app/resources/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
           "async": false
+        },
+        "app/universities/page": {
+          "moduleId": "[project]/.next-internal/server/app/universities/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
         }
       },
       "layer": {
-        "app/_not-found/page": "action-browser",
         "app/appointments/page": "action-browser",
         "app/auth/login/page": "action-browser",
         "app/auth/register/page": "action-browser",
@@ -99,15 +98,12 @@
         "app/dashboard/page": "action-browser",
         "app/page": "action-browser",
         "app/profile/page": "action-browser",
-        "app/resources/page": "action-browser"
+        "app/resources/page": "action-browser",
+        "app/universities/page": "action-browser"
       }
     },
-    "7ff673c44cf7b288dbe112278f6cc68f7eeb6777eb": {
+    "7fb5fa4c101222c014f1d9519dd543849c813b1fb1": {
       "workers": {
-        "app/_not-found/page": {
-          "moduleId": "[project]/.next-internal/server/app/_not-found/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
-          "async": false
-        },
         "app/appointments/page": {
           "moduleId": "[project]/.next-internal/server/app/appointments/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
           "async": false
@@ -139,10 +135,13 @@
         "app/resources/page": {
           "moduleId": "[project]/.next-internal/server/app/resources/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
           "async": false
+        },
+        "app/universities/page": {
+          "moduleId": "[project]/.next-internal/server/app/universities/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
         }
       },
       "layer": {
-        "app/_not-found/page": "action-browser",
         "app/appointments/page": "action-browser",
         "app/auth/login/page": "action-browser",
         "app/auth/register/page": "action-browser",
@@ -150,15 +149,12 @@
         "app/dashboard/page": "action-browser",
         "app/page": "action-browser",
         "app/profile/page": "action-browser",
-        "app/resources/page": "action-browser"
+        "app/resources/page": "action-browser",
+        "app/universities/page": "action-browser"
       }
     },
-    "7f338cc0153a6127be2cc782ec64e0ccdc296e88ed": {
+    "7ffe5d0f303aa7cc68ed6839dcbe763308b182dccd": {
       "workers": {
-        "app/_not-found/page": {
-          "moduleId": "[project]/.next-internal/server/app/_not-found/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
-          "async": false
-        },
         "app/appointments/page": {
           "moduleId": "[project]/.next-internal/server/app/appointments/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
           "async": false
@@ -190,10 +186,13 @@
         "app/resources/page": {
           "moduleId": "[project]/.next-internal/server/app/resources/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
           "async": false
+        },
+        "app/universities/page": {
+          "moduleId": "[project]/.next-internal/server/app/universities/page/actions.js { ACTIONS_MODULE0 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
         }
       },
       "layer": {
-        "app/_not-found/page": "action-browser",
         "app/appointments/page": "action-browser",
         "app/auth/login/page": "action-browser",
         "app/auth/register/page": "action-browser",
@@ -201,10 +200,11 @@
         "app/dashboard/page": "action-browser",
         "app/page": "action-browser",
         "app/profile/page": "action-browser",
-        "app/resources/page": "action-browser"
+        "app/resources/page": "action-browser",
+        "app/universities/page": "action-browser"
       }
     }
   },
   "edge": {},
-  "encryptionKey": "3hR+YtqkqJh12Dlf+JY2JA/kfUdyQD+SXO2Q3+UfOl0="
+  "encryptionKey": "v2MI0ABA3NFvreVpseq65whtlbUnSGz13Fg35rVese8="
 }

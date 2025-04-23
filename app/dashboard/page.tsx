@@ -3,15 +3,8 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { 
-  Calendar, 
-  MessageSquare, 
-  Users, 
-  BookOpen, 
-  GraduationCap, 
-  FileText, 
-  Clock,
-  ClipboardList
+import {
+  Calendar, GraduationCap, ClipboardList
 } from "lucide-react"
 import { useUser } from "@clerk/nextjs"
 import { createClient } from '@supabase/supabase-js'
@@ -21,21 +14,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DatePicker } from "@/components/ui/date-picker"
-import { YearMonthDatePicker } from "@/components/ui/year-month-date-picker"
 import { WeeklyScheduler, WeeklySchedule } from "@/components/ui/weekly-scheduler"
 import { MultiSelectHouses } from "@/components/ui/multi-select-houses"
-import { 
-  UserRole, 
-  StudentGender, 
-  HouseType, 
-  Appointment, 
-  Discussion, 
+import {
+  UserRole,
+  StudentGender,
+  HouseType,
+  Appointment,
+  Discussion,
   DiscussionReply,
-  Application, 
+  Application,
   Resource
 } from "@/types/types"
-import { format, parseISO, addDays } from "date-fns"
+import { format, parseISO } from "date-fns"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -74,6 +65,65 @@ export default function DashboardPage() {
   const [pendingApprovals, setPendingApprovals] = useState<number>(0)
   const [officeHours, setOfficeHours] = useState<string>("")
   
+  // Add state for validation errors
+  const [formErrors, setFormErrors] = useState<{
+    date_of_birth?: string;
+  }>({})
+
+  // Function to validate date format (YYYY-MM-DD)
+  const validateDateOfBirth = (dob: string): boolean => {
+    // Check if empty (which is allowed)
+    if (!dob) return true;
+    
+    // Check format using regex (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(dob)) {
+      setFormErrors({...formErrors, date_of_birth: "Date must be in YYYY-MM-DD format"});
+      return false;
+    }
+    
+    // Parse the date parts
+    const [year, month, day] = dob.split('-').map(Number);
+    
+    // Check if it's a valid date
+    const date = new Date(year, month - 1, day);
+    if (
+      date.getFullYear() !== year || 
+      date.getMonth() !== month - 1 || 
+      date.getDate() !== day
+    ) {
+      setFormErrors({...formErrors, date_of_birth: "Invalid date"});
+      return false;
+    }
+    
+    // Check if date is in the past
+    const today = new Date();
+    if (date > today) {
+      setFormErrors({...formErrors, date_of_birth: "Date cannot be in the future"});
+      return false;
+    }
+    
+    // Check if student is at least 10 years old
+    const minAge = new Date();
+    minAge.setFullYear(minAge.getFullYear() - 10);
+    if (date > minAge) {
+      setFormErrors({...formErrors, date_of_birth: "Student must be at least 10 years old"});
+      return false;
+    }
+    
+    // Check if student is not unreasonably old (e.g., over 100)
+    const maxAge = new Date();
+    maxAge.setFullYear(maxAge.getFullYear() - 100);
+    if (date < maxAge) {
+      setFormErrors({...formErrors, date_of_birth: "Please enter a valid birth date"});
+      return false;
+    }
+    
+    // All checks passed
+    setFormErrors({...formErrors, date_of_birth: undefined});
+    return true;
+  };
+
   // User form states
   const [userForm, setUserForm] = useState({
     role: "student" as UserRole
@@ -84,7 +134,7 @@ export default function DashboardPage() {
     class: "",
     house: "fibonacci" as HouseType,
     graduation_year: new Date().getFullYear() + 4,
-    date_of_birth: null as Date | null,
+    date_of_birth: "" as string,
     gender: "prefer_not_to_say" as StudentGender,
     bio: ""
   })
@@ -290,7 +340,6 @@ export default function DashboardPage() {
       }
 
       // Ensure pendingCount is defined
-      const pendingCount = studentRequests;
 
       // Fetch forum questions with no replies
       const { data: unansweredPostsData, error: forumError } = await supabase
@@ -304,7 +353,6 @@ export default function DashboardPage() {
       if (forumError) {
         console.error("Error fetching unanswered forum questions:", forumError);
       } else {
-        const unansweredCount = unansweredPostsData?.length || 0;
       }
     } catch (error) {
       console.error("Error fetching counsellor data:", error);
@@ -350,6 +398,11 @@ export default function DashboardPage() {
     
     const email = user.emailAddresses[0].emailAddress;
     const name = user.fullName;
+
+    // Validate date of birth
+    if (!validateDateOfBirth(studentForm.date_of_birth)) {
+      return;
+    }
     
     try {
       // Create student in database
@@ -359,7 +412,7 @@ export default function DashboardPage() {
         class: studentForm.class,
         house: studentForm.house,
         graduation_year: studentForm.graduation_year,
-        date_of_birth: studentForm.date_of_birth ? format(studentForm.date_of_birth, 'yyyy-MM-dd') : null,
+        date_of_birth: studentForm.date_of_birth || null,
         gender: studentForm.gender,
         bio: studentForm.bio,
         created_at: new Date().toISOString(),
@@ -524,12 +577,19 @@ export default function DashboardPage() {
                     <Label htmlFor="date_of_birth" className="text-right">
                       Date of Birth
                     </Label>
-                    <div className="col-span-3">
-                      <YearMonthDatePicker
-                        date={studentForm.date_of_birth}
-                        onSelect={(date) => setStudentForm({...studentForm, date_of_birth: date})}
-                      />
-                    </div>
+                    <Input
+                      id="date_of_birth"
+                      type="text"
+                      className="col-span-3"
+                      value={studentForm.date_of_birth}
+                      onChange={(e) => setStudentForm({...studentForm, date_of_birth: e.target.value})}
+                      placeholder="YYYY-MM-DD"
+                    />
+                    {formErrors.date_of_birth && (
+                      <p className="col-span-4 text-red-500 text-sm text-right">
+                        {formErrors.date_of_birth}
+                      </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="gender" className="text-right">

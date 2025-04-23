@@ -6,12 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Calendar, Mail, Clock, Phone, Info } from "lucide-react"
 import { createClient } from '@supabase/supabase-js'
-import type { Counsellor } from '@/types/types'
+import { useRouter } from "next/navigation"
+import { useUser } from "@clerk/nextjs"
+import type { Counsellor, UserRole } from '@/types/types'
 
 export default function CounsellorsPage() {
   const [counsellors, setCounsellors] = useState<Counsellor[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<UserRole | null>(null)
+  const router = useRouter()
+  const { user } = useUser()
 
   useEffect(() => {
     const fetchCounsellors = async () => {
@@ -38,6 +43,42 @@ export default function CounsellorsPage() {
 
     fetchCounsellors()
   }, [])
+
+  // Fetch user role
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user?.emailAddresses?.[0]?.emailAddress) return
+      
+      try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+        )
+        
+        const { data, error } = await supabase
+          .from('users')
+          .select('role')
+          .eq('email', user.emailAddresses[0].emailAddress)
+          .single()
+        
+        if (error) {
+          console.error('Error fetching user role:', error)
+          return
+        }
+        
+        setUserRole(data.role as UserRole)
+      } catch (err) {
+        console.error('Error in fetchUserRole:', err)
+      }
+    }
+    
+    fetchUserRole()
+  }, [user])
+  
+  // Handle booking a session with a specific counsellor
+  const handleBookSession = (counsellorEmail: string) => {
+    router.push(`/appointments?counsellor=${counsellorEmail}`)
+  }
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -103,10 +144,17 @@ export default function CounsellorsPage() {
                         </div>
                       )}
                     </div>
-                    <Button className="w-full">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      Book Session
-                    </Button>
+                    
+                    {/* Only show Book Session button to students */}
+                    {userRole === 'student' && (
+                      <Button 
+                        className="w-full" 
+                        onClick={() => handleBookSession(counsellor.email)}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Book Session
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

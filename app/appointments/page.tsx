@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CalendarClock, Users, GraduationCap, ArrowRight, Loader2 } from "lucide-react"
 import { useState, useMemo, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import WeeklyCalendar from "@/components/appointments/WeeklyCalendar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
@@ -18,15 +19,23 @@ import {
   fetchAppointmentsForStudent,
   updateAppointmentStatus,
   createAppointment,
-  deleteAppointment
+  deleteAppointment,
+  fetchAllStudents
 } from "@/lib/db"
-import type { Appointment as AppointmentType, Counsellor, UserRole, AppointmentStatus } from "@/types/types"
+import type { Appointment as AppointmentType, Counsellor, UserRole, AppointmentStatus, Student } from "@/types/types"
 
 // Initialize Supabase client
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 )
+
+// Helper to convert a Date or ISO string to Singapore time (GMT+8)
+function toSingaporeDate(date: Date | string) {
+    const d = typeof date === "string" ? new Date(date) : date;
+    // Convert to Singapore time by adding 8 hours to UTC
+    return new Date(d.getTime() + 8 * 60 * 60 * 1000);
+}
 
 // Interface for student view appointments
 interface StudentAppointment {
@@ -44,36 +53,58 @@ interface StudentAppointment {
     status?: AppointmentStatus;
 }
 
-// Interface for counsellor view appointments
-interface CounsellorAppointment {
+// Interface for counsellor view appointments (renamed to avoid type clash)
+export interface CounsellorAppointment {
     id: string; // Changed from number to string for UUID
     title: string;
-    studentName: string;
-    studentEmail?: string;
-    studentId?: string;
+    student_email?: string;
     day: Date;
-    startHour: number;
-    startMinute: number;
-    endHour: number;
-    endMinute: number;
-    counsellorId: string;
-    counsellorName: string;
+    start_hour: number;
+    start_minute: number;
+    end_hour: number;
+    end_minute: number;
+    counsellor_email: string;
     type: string;
-    notes: string;
-    status: 'pending' | 'confirmed' | 'cancelled';
-    counsellorNotes?: string;
+    description: string;
+    counsellor_notes?: string;
+    student_notes?: string;
+    status: 'requested' | 'confirmed' | 'cancelled';
 }
 
 export default function AppointmentsPage() {
     const { user } = useUser();
     const { toast } = useToast();
-    const [counsellors, setCounsellors] = useState<{ id: string; name: string; }[]>([]);
+    const searchParams = useSearchParams();
+    const [counsellors, setCounsellors] = useState<Counsellor[]>([]);
+    const [students, setStudents] = useState<Student[]>([]);
     const [userRole, setUserRole] = useState<UserRole | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [selectedCounsellorId, setSelectedCounsellorId] = useState<string | null>(null);
+    const [selectedCounsellorName, setSelectedCounsellorName] = useState<string>("");
     const [appointments, setAppointments] = useState<StudentAppointment[]>([]);
     const [counsellorAppointments, setCounsellorAppointments] = useState<CounsellorAppointment[]>([]);
     const [myAppointmentsCount, setMyAppointmentsCount] = useState(0);
+
+    // Fetch all appointments for display in calendar
+    const [allCounsellorAppointments, setAllCounsellorAppointments] = useState<StudentAppointment[]>([]);
+
+    // Get counsellor from URL parameters
+    useEffect(() => {
+        const counsellorParam = searchParams.get('counsellor');
+        if (counsellorParam) {
+            setSelectedCounsellorId(counsellorParam);
+        }
+    }, [searchParams]);
+
+    // Update counsellor name when ID changes or counsellors are loaded
+    useEffect(() => {
+        if (selectedCounsellorId && counsellors.length > 0) {
+            const counsellor = counsellors.find(c => c.email === selectedCounsellorId);
+            if (counsellor) {
+                setSelectedCounsellorName(counsellor.name);
+            }
+        }
+    }, [selectedCounsellorId, counsellors]);
 
     // Fetch user role and data
     useEffect(() => {
@@ -100,11 +131,11 @@ export default function AppointmentsPage() {
                 
                 // Fetch counsellors for dropdown
                 const fetchedCounsellors = await fetchAllCounsellors();
-                const mappedCounsellors = fetchedCounsellors.map(counsellor => ({
-                    id: counsellor.email,
-                    name: counsellor.name
-                }));
-                setCounsellors(mappedCounsellors);
+                setCounsellors(fetchedCounsellors);
+
+
+                const fetchedStudents = await fetchAllStudents();
+                setStudents(fetchedStudents);
 
                 // Fetch appointments based on user role
                 if (userData.role === 'student') {
@@ -117,9 +148,9 @@ export default function AppointmentsPage() {
                             // Find counsellor details
                             const counsellor = fetchedCounsellors.find(c => c.email === appointment.counsellor_email);
                             
-                            // Parse date and time
-                            const startDate = new Date(appointment.start_time);
-                            const endDate = new Date(appointment.end_time);
+                            // Parse date and time in Singapore time
+                            const startDate = toSingaporeDate(appointment.start_time);
+                            const endDate = toSingaporeDate(appointment.end_time);
                             
                             return {
                                 id: appointment.appointment_id, // Using UUID directly
@@ -137,54 +168,83 @@ export default function AppointmentsPage() {
                             };
                         });
                         
+                        console.log("Fetched appointments (raw):", appointmentsData);
                         setAppointments(transformedAppointments);
                         setMyAppointmentsCount(transformedAppointments.length);
+                        console.log("Transformed appointments (SGT):", transformedAppointments);
                     }
+                    
+                    // Fetch all counsellor appointments to show as unavailable slots
+                    const { data: allAppointmentsData, error: allApptsError } = await supabase
+                        .from('appointment')
+                        .select('*')
+                        .or('status.eq.confirmed,status.eq.requested');
+                    
+                    if (allApptsError) {
+                        console.error("Error fetching all appointments:", allApptsError);
+                    } else if (allAppointmentsData) {
+                        // Transform appointments to show as unavailable slots (anonymized)
+                        const transformedAllAppointments = allAppointmentsData.map(appointment => {
+                            // Find counsellor details
+                            const counsellor = fetchedCounsellors.find(c => c.email === appointment.counsellor_email);
+                            
+                            // Parse date and time in Singapore time
+                            const startDate = toSingaporeDate(appointment.start_time);
+                            const endDate = toSingaporeDate(appointment.end_time);
+                            
+                            return {
+                                id: appointment.appointment_id,
+                                title: "Unavailable", // Generic title to maintain privacy
+                                day: startDate,
+                                startHour: startDate.getHours(),
+                                startMinute: startDate.getMinutes(),
+                                endHour: endDate.getHours(),
+                                endMinute: endDate.getMinutes(),
+                                counselorId: appointment.counsellor_email,
+                                counselorName: counsellor?.name || 'Counsellor',
+                                type: "Booked", // Generic type
+                                notes: "",
+                                status: "unavailable" as AppointmentStatus // Special status for calendar display
+                            };
+                        });
+                        
+                        setAllCounsellorAppointments(transformedAllAppointments);
+                    }
+                    
                 } else if (userData.role === 'counsellor') {
                     // For counsellors, fetch their appointments
                     const appointmentsData = await fetchAppointmentsForCounsellor(email);
-                    console.log("Appointments Data:", appointmentsData);
+                    console.log("Counsellor Appointments Data:", appointmentsData);
                     
                     // Transform appointments for counsellor view
                     const transformedAppointments = await Promise.all(appointmentsData.map(async (appointment) => {
-                        // Get student details
-                        const { data: studentData } = await supabase
-                            .from('student')
-                            .select('name')
-                            .eq('email', appointment.student_email)
-                            .single();
                         
                         // Parse date and time
-                        const startDate = new Date(appointment.start_time);
-                        const endDate = new Date(appointment.end_time);
+                        const startDate = toSingaporeDate(appointment.start_time);
+                        const endDate = toSingaporeDate(appointment.end_time);
                         
                         return {
                             id: appointment.appointment_id, // Using UUID directly
                             title: appointment.title,
-                            studentName: studentData?.name || 'Unknown Student',
-                            studentEmail: appointment.student_email,
+                            student_email: appointment.student_email,
                             day: startDate,
-                            startHour: startDate.getHours(),
-                            startMinute: startDate.getMinutes(),
-                            endHour: endDate.getHours(),
-                            endMinute: endDate.getMinutes(),
-                            counsellorId: appointment.counsellor_email,
-                            counsellorName: fetchedCounsellors.find(c => c.email === appointment.counsellor_email)?.name || 'Unknown Counsellor',
+                            start_hour: startDate.getHours(),
+                            start_minute: startDate.getMinutes(),
+                            end_hour: endDate.getHours(),
+                            end_minute: endDate.getMinutes(),
+                            counsellor_email: appointment.counsellor_email,
                             type: appointment.description || 'General Appointment',
-                            notes: appointment.student_notes || '',
-                            status: appointment.status === 'requested'
-                                ? 'pending'
-                                : appointment.status === 'confirmed'
-                                ? 'confirmed'
-                                : 'cancelled' as 'pending' | 'confirmed' | 'cancelled',
-                            counsellorNotes: appointment.counsellor_notes || undefined
+                            description: appointment.description || '',
+                            counsellor_notes: appointment.counsellor_notes || undefined,
+                            student_notes: appointment.student_notes || '',
+                            status: appointment.status as 'requested' | 'confirmed' | 'cancelled'
                         };
                     }));
-
-                    console.log("Transformed Appointments:", transformedAppointments);
-                    
+                                        
                     setCounsellorAppointments(transformedAppointments);
                     setMyAppointmentsCount(transformedAppointments.length);
+
+                    console.log("Transformed counsellor appointments (SGT):", transformedAppointments);
                 }
 
                 setIsLoading(false);
@@ -197,65 +257,39 @@ export default function AppointmentsPage() {
         fetchUserData();
     }, [user]);
 
-    // Load all appointments for the user on page load
-    useEffect(() => {
-        async function loadAllAppointments() {
-            if (!user?.emailAddresses?.[0]?.emailAddress) return;
-            
-            try {
-                const email = user.emailAddresses[0].emailAddress;
-                
-                // Fetch all appointments for the current user
-                const appointmentsData = await fetchAppointmentsForStudent(email);
-                
-                if (appointmentsData && appointmentsData.length > 0) {
-                    // Transform appointments for student view
-                    const transformedAppointments = appointmentsData.map(appointment => {
-                        // Find counsellor details
-                        const counsellor = counsellors.find(c => c.id === appointment.counsellor_email);
-                        
-                        // Parse date and time
-                        const startDate = new Date(appointment.start_time);
-                        const endDate = new Date(appointment.end_time);
-                        
-                        return {
-                            id: appointment.appointment_id,
-                            title: appointment.title,
-                            day: startDate,
-                            startHour: startDate.getHours(),
-                            startMinute: startDate.getMinutes(),
-                            endHour: endDate.getHours(),
-                            endMinute: endDate.getMinutes(),
-                            counselorId: appointment.counsellor_email,
-                            counselorName: counsellor?.name || 'Unknown Counsellor',
-                            type: appointment.description || 'General Appointment',
-                            notes: appointment.student_notes || '',
-                            status: appointment.status
-                        };
-                    });
-                    
-                    setAppointments(transformedAppointments);
-                    setMyAppointmentsCount(transformedAppointments.length);
-                    console.log("All appointments loaded:", transformedAppointments.length);
-                }
-            } catch (error) {
-                console.error("Error fetching appointments:", error);
-            }
-        }
-
-        if (counsellors.length > 0) {
-            loadAllAppointments();
-        }
-    }, [user, counsellors]);
-
-    // Modified to return all appointments when no counselor is selected,
-    // enabling the view of all appointments across counselors
+    // When filtering appointments in student view, combine the student's own appointments
+    // with anonymized slots from other counsellors
     const filteredAppointments = useMemo(() => {
-        if (!selectedCounsellorId) {
-            return appointments; // Return all appointments when no counselor is selected
+        if (userRole !== 'student') {
+            return appointments;
         }
-        return appointments.filter(appt => appt.counselorId === selectedCounsellorId);
-    }, [appointments, selectedCounsellorId]);
+        
+        // For students: if no counsellor is selected, show only their own appointments
+        if (!selectedCounsellorId) {
+            return appointments;
+        }
+
+        // When a counsellor is selected, show student's own appointments plus all booked slots for that counsellor
+        const filteredOwnAppointments = appointments.filter(appt => 
+            appt.counselorId === selectedCounsellorId
+        );
+        
+        const filteredCounsellorSlots = allCounsellorAppointments.filter(appt => 
+            appt.counselorId === selectedCounsellorId
+        );
+        
+        // Combine the lists, removing duplicates by appointment ID
+        const combinedAppointments = [...filteredOwnAppointments];
+        
+        // Add counsellor's booked slots if not already in student's appointments
+        filteredCounsellorSlots.forEach(slot => {
+            if (!combinedAppointments.some(appt => appt.id === slot.id)) {
+                combinedAppointments.push(slot);
+            }
+        });
+        
+        return combinedAppointments;
+    }, [appointments, allCounsellorAppointments, selectedCounsellorId, userRole]);
 
     const handleSaveAppointment = async (newAppointment: StudentAppointment) => {
         try {
@@ -277,12 +311,19 @@ export default function AppointmentsPage() {
             const endTime = new Date(newAppointment.day);
             endTime.setHours(newAppointment.endHour, newAppointment.endMinute, 0, 0);
             
+            // If the counselorId is empty but we have a selected counselor in the UI, use that
+            const counsellorEmail = newAppointment.counselorId || selectedCounsellorId || '';
+            
+            // Find the counselor name to display in toast
+            const counsellorName = counsellors.find(c => c.email === counsellorEmail)?.name || 'Unknown';
+            
             console.log("Start time before DB insert:", startTime.toISOString());
             console.log("End time before DB insert:", endTime.toISOString());
+            console.log("Booking with counselor:", counsellorEmail);
             
             const appointment = await createAppointment({
                 student_email: studentEmail,
-                counsellor_email: newAppointment.counselorId,
+                counsellor_email: counsellorEmail,
                 title: newAppointment.title,
                 start_time: startTime.toISOString(),
                 end_time: endTime.toISOString(),
@@ -294,13 +335,15 @@ export default function AppointmentsPage() {
             // Update local state with UUID from created appointment
             setAppointments(prev => [...prev, { 
                 ...newAppointment, 
-                id: appointment.appointment_id // Using the UUID returned from the database
+                id: appointment.appointment_id, // Using the UUID returned from the database
+                counselorId: counsellorEmail, // Ensure counselorId is set correctly
+                counselorName: counsellorName // Set the counselor name
             }]);
             setMyAppointmentsCount(prev => prev + 1);
             
             toast({
                 title: "Appointment Requested",
-                description: "Your appointment has been requested and is waiting for confirmation.",
+                description: `Your appointment with ${counsellorName} has been requested and is waiting for confirmation.`,
             });
             
         } catch (error) {
@@ -441,7 +484,7 @@ export default function AppointmentsPage() {
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-muted-foreground">Pending Appointments</p>
-                                    <h2 className="text-3xl font-bold">{counsellorAppointments.filter(a => a.status === 'pending').length}</h2>
+                                    <h2 className="text-3xl font-bold">{counsellorAppointments.filter(a => a.status === 'requested').length}</h2>
                                 </div>
                             </CardContent>
                         </Card>
@@ -467,11 +510,13 @@ export default function AppointmentsPage() {
                     >
                         <h2 className="text-2xl font-semibold mb-6">Appointment Calendar</h2>
                         <div className="h-[700px]">
-                            <AdminCalendar
-                                appointments={counsellorAppointments}
-                                onConfirmAppointment={handleConfirmAppointment}
-                                onCancelAppointment={handleCancelAppointment}
-                            />
+                        <AdminCalendar
+                            appointments={counsellorAppointments}
+                            students={students}
+                            counselors={counsellors}
+                            onConfirmAppointment={handleConfirmAppointment}
+                            onCancelAppointment={handleCancelAppointment}
+                        />
                         </div>
                     </motion.div>
                 </motion.div>
@@ -546,39 +591,53 @@ export default function AppointmentsPage() {
                 >
                     <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
                         <h2 className="text-2xl font-semibold">Book an Appointment</h2>
-                        <div className="grid gap-2 w-full sm:w-64">
-                            <Label htmlFor="counsellor-select">Filter by Counsellor</Label>
-                            <Select
-                                value={selectedCounsellorId ?? "all"}
-                                onValueChange={(value) => setSelectedCounsellorId(value === "all" ? null : value)}
-                            >
-                                <SelectTrigger id="counsellor-select">
-                                    <SelectValue placeholder="View all counsellors" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Counsellors</SelectItem>
-                                    {counsellors.map(counsellor => (
-                                        <SelectItem key={counsellor.id} value={counsellor.id}>
-                                            {counsellor.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        {selectedCounsellorId ? (
+                            <div className="grid gap-2 w-full sm:w-64 p-3 border rounded-lg bg-secondary/20">
+                                <p className="text-sm text-muted-foreground">Selected Counsellor</p>
+                                <p className="font-medium">{selectedCounsellorName}</p>
+                            </div>
+                        ) : (
+                            <div className="grid gap-2 w-full sm:w-64">
+                                <Label htmlFor="counsellor-select">Select Counsellor</Label>
+                                <Select
+                                    value={selectedCounsellorId ?? ""}
+                                    onValueChange={(value) => setSelectedCounsellorId(value === "" ? null : value)}
+                                >
+                                    <SelectTrigger id="counsellor-select">
+                                        <SelectValue placeholder="Select a counsellor" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {counsellors.map(counsellor => (
+                                            <SelectItem key={counsellor.email} value={counsellor.email}>
+                                                {counsellor.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
                     </div>
 
                     <div className="text-sm text-muted-foreground mb-6">
-                        <p>Click and drag on the calendar to create a new appointment. Different colored appointments represent different counsellors. Click on existing appointments to view details.</p>
+                        <p>Select a counsellor first, then click and drag on the calendar to create a new appointment. Gray slots indicate times already booked.</p>
                     </div>
-                    <div className="h-[700px]">
-                         <WeeklyCalendar
-                            selectedCounselorId={selectedCounsellorId}
-                            appointments={filteredAppointments}
-                            counselors={counsellors}
-                            onSaveAppointment={handleSaveAppointment}
-                            onDeleteAppointment={handleDeleteAppointment}
-                        />
-                    </div>
+                    
+                    {!selectedCounsellorId ? (
+                        <div className="p-8 text-center bg-muted rounded-md">
+                            <h3 className="text-lg font-medium mb-2">Please Select a Counsellor</h3>
+                            <p className="text-muted-foreground">You need to select a counsellor to view their availability and book an appointment.</p>
+                        </div>
+                    ) : (
+                        <div className="h-[700px]">
+                            <WeeklyCalendar
+                                selectedCounselorId={selectedCounsellorId}
+                                appointments={filteredAppointments}
+                                counselors={counsellors}
+                                onSaveAppointment={handleSaveAppointment}
+                                onDeleteAppointment={handleDeleteAppointment}
+                            />
+                        </div>
+                    )}
                 </motion.div>
             </motion.div>
         </div>

@@ -27,7 +27,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useUser } from "@clerk/nextjs";
 import { createClient } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
-import type { AppointmentStatus } from '@/types/types';
+import type { Student, Counsellor } from '@/types/types';
+import type { CounsellorAppointment } from '@/app/appointments/page';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -45,23 +46,12 @@ interface TimeSlot {
     minute: number;
 }
 
-export interface Appointment {
-    id: string; // Changed from number to string for UUID
-    title: string;
-    studentName: string;
-    studentEmail?: string;
-    studentId?: string;
-    day: Date;
-    startHour: number;
-    startMinute: number;
-    endHour: number;
-    endMinute: number;
-    counsellorId: string;
-    counsellorName: string;
-    type: string;
-    notes: string;
-    status: 'pending' | 'confirmed' | 'cancelled';
-    counsellorNotes?: string;
+interface AdminCalendarProps {
+    appointments: CounsellorAppointment[];
+    students: Student[];
+    counselors: Counsellor[];
+    onConfirmAppointment: (id: string, notes: string) => void;
+    onCancelAppointment: (id: string, reason: string) => void;
 }
 
 // Create time slots for the day based on business hours
@@ -91,14 +81,10 @@ const formatTimeRange = (startHour: number, startMinute: number, endHour: number
     return `${formatTime(startHour, startMinute)} - ${formatTime(endHour, endMinute)}`;
 };
 
-interface AdminCalendarProps {
-    appointments: Appointment[];
-    onConfirmAppointment: (id: string, notes: string) => void; // Changed from number to string
-    onCancelAppointment: (id: string, reason: string) => void; // Changed from number to string
-}
-
 const AdminCalendar: React.FC<AdminCalendarProps> = ({
     appointments,
+    students,
+    counselors,
     onConfirmAppointment,
     onCancelAppointment
 }) => {
@@ -107,7 +93,7 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [calendarOpen, setCalendarOpen] = useState<boolean>(false);
     const [visibleDays, setVisibleDays] = useState<number>(7);
-    const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+    const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null);
     const [confirmDialogOpen, setConfirmDialogOpen] = useState<boolean>(false);
     const [cancelDialogOpen, setCancelDialogOpen] = useState<boolean>(false);
     const [counsellorNotes, setCounsellorNotes] = useState<string>('');
@@ -129,6 +115,8 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
 
         checkMediaQueries();
         window.addEventListener('resize', checkMediaQueries);
+
+        console.log('appointments', appointments); //appointments are indeed fetched
         
         return () => {
             window.removeEventListener('resize', checkMediaQueries);
@@ -170,7 +158,7 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
     };
 
     // Open appointment details
-    const handleAppointmentClick = (appointment: Appointment) => {
+    const handleAppointmentClick = (appointment: any) => {
         setSelectedAppointment(appointment);
     };
 
@@ -209,14 +197,41 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
         setSelectedAppointment(null);
     };
 
+    const displayAppointments = appointments
+        .filter(appt => appt.counsellor_email === user?.emailAddresses[0]?.emailAddress)
+        .map(appt => {
+            const day = appt.day;
+            if (!day || !startDate) return null;
+            const student = students.find(s => s.email === appt.student_email);
+            const counselor = counselors.find(c => c.email === appt.counsellor_email);
+            return {
+                id: appt.id,
+                title: appt.title,
+                studentName: student?.name || appt.student_email,
+                studentEmail: appt.student_email,
+                day: day,
+                start_hour: appt.start_hour,
+                start_minute: appt.start_minute,
+                end_hour: appt.end_hour,
+                end_minute: appt.end_minute,
+                counsellor_name: counselor?.name || appt.counsellor_email,
+                counsellor_email: appt.counsellor_email,
+                type: appt.description || 'General Appointment',
+                student_notes: appt.student_notes || '',
+                status: appt.status,
+                counsellor_notes: appt.counsellor_notes || ''
+            };
+        })
+        .filter(Boolean); // Remove nulls from invalid appointments
+
     // Calculate position for appointment on the grid
-    const getAppointmentPosition = (appt: Appointment): {
+    const getAppointmentPosition = (appt: any): {
         start: number,
         duration: number,
         dayIndex: number
     } => {
-        const startTime = appt.startHour * 60 + appt.startMinute;
-        const endTime = appt.endHour * 60 + appt.endMinute;
+        const startTime = appt.start_hour * 60 + appt.start_minute;
+        const endTime = appt.end_hour * 60 + appt.end_minute;
         const duration = endTime - startTime;
         
         // Starting from 7:30 AM (first slot)
@@ -233,10 +248,58 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
         };
     };
 
-    // Filter appointments for the counsellor
-    const filteredAppointments = appointments.filter(
-        appt => appt.counsellorId === user?.id
-    );
+    // Get content for appointment display based on available space
+    const getAppointmentContent = (appointment: any, duration: number) => {
+        // For very short appointments (30 min), prioritize the student name
+        if (duration <= 1) {
+            return (
+                <>
+                    <div className="font-medium truncate">
+                        {appointment.studentName}
+                    </div>
+                </>
+            );
+        }
+        
+        // For medium appointments (1 hour), show title and student name
+        if (duration <= 2) {
+            return (
+                <>
+                    <div className="font-medium truncate">
+                        {appointment.studentName}
+                    </div>
+                    <div className="text-xs opacity-90">
+                        {formatTimeRange(
+                            appointment.start_hour,
+                            appointment.start_minute,
+                            appointment.end_hour,
+                            appointment.end_minute
+                        )}
+                    </div>
+                </>
+            );
+        }
+        
+        // For longer appointments, show full details
+        return (
+            <>
+                <div className="font-medium truncate">
+                    {appointment.title}
+                </div>
+                <div className="text-xs opacity-90">
+                    {formatTimeRange(
+                        appointment.start_hour,
+                        appointment.start_minute,
+                        appointment.end_hour,
+                        appointment.end_minute
+                    )}
+                </div>
+                <div className="text-xs mt-1 truncate">
+                    {appointment.studentName}
+                </div>
+            </>
+        );
+    };
 
     return (
         <div className="flex flex-col h-full bg-background rounded-md border shadow-sm">
@@ -393,7 +456,8 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
                     ))}
 
                     {/* Appointments overlay */}
-                    {filteredAppointments.map((appointment) => {
+                    {displayAppointments.map((appointment) => {
+                        if (!appointment) return null;
                         const { start, duration, dayIndex } = getAppointmentPosition(appointment);
 
                         // Skip if not in the visible range
@@ -401,8 +465,10 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
 
                         // Determine color based on status
                         const bgColorClass = appointment.status === 'confirmed' 
-                            ? "bg-primary text-primary-foreground" 
-                            : "bg-yellow-500 text-white";
+                            ? "bg-green-500 text-primary-foreground" 
+                            : appointment.status === 'requested'
+                            ? "bg-amber-500 text-white"
+                            : "bg-red-500 text-white";
 
                         return (
                             <div
@@ -426,20 +492,7 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
                                 }}
                                 onClick={() => handleAppointmentClick(appointment)}
                             >
-                                <div className="font-medium truncate">
-                                    {appointment.title}
-                                </div>
-                                <div className="text-xs opacity-90">
-                                    {formatTimeRange(
-                                        appointment.startHour,
-                                        appointment.startMinute,
-                                        appointment.endHour,
-                                        appointment.endMinute
-                                    )}
-                                </div>
-                                <div className="text-xs mt-1 truncate">
-                                    {appointment.studentName}
-                                </div>
+                                {getAppointmentContent(appointment, duration)}
                             </div>
                         );
                     })}
@@ -480,10 +533,10 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
                                     <span className="text-muted-foreground">Time:</span>
                                     <span className="font-medium">
                                         {formatTimeRange(
-                                            selectedAppointment.startHour,
-                                            selectedAppointment.startMinute,
-                                            selectedAppointment.endHour,
-                                            selectedAppointment.endMinute
+                                            selectedAppointment.start_hour,
+                                            selectedAppointment.start_minute,
+                                            selectedAppointment.end_hour,
+                                            selectedAppointment.end_minute
                                         )}
                                     </span>
                                 </div>
@@ -498,24 +551,24 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
                                     <span className={cn(
                                         "font-medium",
                                         selectedAppointment.status === 'confirmed' ? "text-green-600 dark:text-green-400" :
-                                        selectedAppointment.status === 'pending' ? "text-yellow-600 dark:text-yellow-400" :
+                                        selectedAppointment.status === 'requested' ? "text-yellow-600 dark:text-yellow-400" :
                                         "text-red-600 dark:text-red-400"
                                     )}>
                                         {selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1)}
                                     </span>
                                 </div>
 
-                                {selectedAppointment.notes && (
+                                {selectedAppointment.student_notes && (
                                     <div className="mt-2">
                                         <span className="text-sm text-muted-foreground">Student Notes:</span>
-                                        <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedAppointment.notes}</p>
+                                        <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedAppointment.student_notes}</p>
                                     </div>
                                 )}
 
-                                {selectedAppointment.counsellorNotes && (
+                                {selectedAppointment.counsellor_notes && (
                                     <div className="mt-2">
                                         <span className="text-sm text-muted-foreground">Your Notes:</span>
-                                        <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedAppointment.counsellorNotes}</p>
+                                        <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedAppointment.counsellor_notes}</p>
                                     </div>
                                 )}
                             </div>
@@ -530,7 +583,7 @@ const AdminCalendar: React.FC<AdminCalendarProps> = ({
                                 Close
                             </Button>
 
-                            {selectedAppointment.status === 'pending' && (
+                            {selectedAppointment.status === 'requested' && (
                                 <>
                                     <Button
                                         variant="destructive"

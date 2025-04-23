@@ -224,9 +224,7 @@ export default function UniversitiesPage() {
         uni.uni_name.toLowerCase().includes(query) || 
         uni.country.toLowerCase().includes(query) ||
         (uni.region && uni.region.toLowerCase().includes(query)) ||
-        (uni.description && uni.description.toLowerCase().includes(query)) ||
-        (uni.best_ranked_subjects && uni.best_ranked_subjects.toLowerCase().includes(query))
-      )
+        (uni.description && uni.description.toLowerCase().includes(query))      )
     }
     
     // Apply country filter
@@ -976,22 +974,6 @@ export default function UniversitiesPage() {
                               Founded
                             </Badge>
                             <p>{selectedUniversity.found_year}</p>
-                          </div>
-                        )}
-                        
-                        {selectedUniversity.website && (
-                          <div className="flex items-start">
-                            <Badge className="mt-0.5 mr-2" variant="outline">
-                              Website
-                            </Badge>
-                            <a 
-                              href={selectedUniversity.website} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-500 hover:underline"
-                            >
-                              {selectedUniversity.website}
-                            </a>
                           </div>
                         )}
                         

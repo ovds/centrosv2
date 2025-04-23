@@ -11,7 +11,7 @@ export function MainNav() {
   const routes = [
     {
       href: "/",
-      label: "NUS High",
+      label: "Centros",
       icon: null,
       active: pathname === "/",
       className: "mr-6 font-bold text-lg hidden lg:flex items-center"
